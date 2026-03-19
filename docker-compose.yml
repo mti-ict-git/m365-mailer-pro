@@ -20,7 +20,7 @@ services:
       MS_GRAPH_SCOPE: ${MS_GRAPH_SCOPE:-https://graph.microsoft.com/.default}
     command: sh -c "npm --prefix backend run db:init && npm --prefix backend run start"
     ports:
-      - "${BACKEND_PORT:-3001}:3001"
+      - "${BACKEND_PORT:-5057}:3001"
 
   frontend:
     build:
@@ -30,4 +30,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-8080}:8080"
+      - "${FRONTEND_PORT:-9103}:8080"
