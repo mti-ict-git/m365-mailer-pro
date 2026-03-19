@@ -3,6 +3,8 @@ services:
     image: node:20-alpine
     working_dir: /app
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: development
       BACKEND_PORT: ${BACKEND_PORT:-3001}
@@ -11,10 +13,10 @@ services:
       POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
       POSTGRES_SSL: ${POSTGRES_SSL:-false}
       POSTGRES_SSL_REJECT_UNAUTHORIZED: ${POSTGRES_SSL_REJECT_UNAUTHORIZED:-false}
-      LDAP_URL: ""
-      LDAP_BASE_DN: ""
-      BIND_DN: ""
-      BIND_PW: ""
+      LDAP_URL: ${LDAP_URL:-}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
+      BIND_DN: ${BIND_DN:-}
+      BIND_PW: ${BIND_PW:-}
       MS_GRAPH_CLIENT_ID: ${MS_GRAPH_CLIENT_ID:-}
       MS_GRAPH_TENANT_ID: ${MS_GRAPH_TENANT_ID:-}
       MS_GRAPH_CLIENT_SECRET: ${MS_GRAPH_CLIENT_SECRET:-}

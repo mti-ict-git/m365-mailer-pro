@@ -134,3 +134,15 @@
 - Added configurable development ports via `FRONTEND_PORT` and `BACKEND_PORT` in dev compose.
 - Added configurable `CORS_ORIGIN` in compose files for custom frontend port usage.
 - Updated README with custom port examples for both production and development Docker workflows.
+
+## 2026-03-19 23:31:07 WITA
+
+- Fixed PostgreSQL SSL resolution so explicit `POSTGRES_SSL=false` disables SSL for remote hosts.
+- Added `POSTGRES_SSL` and `POSTGRES_SSL_REJECT_UNAUTHORIZED` environment variables to production and development compose files.
+- Updated Docker README guidance for non-SSL PostgreSQL and TLS-enabled PostgreSQL deployments.
+
+## 2026-03-19 23:35:48 WITA
+
+- Updated compose files to load `.env` directly via `env_file` for backend services.
+- Replaced hardcoded empty LDAP credentials in compose with environment-driven values.
+- Clarified README that `.env` is read automatically and `export` is only for temporary overrides.

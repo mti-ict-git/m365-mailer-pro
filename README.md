@@ -170,7 +170,9 @@ Run full stack with Docker Compose:
 docker compose up --build
 ```
 
-Custom host ports:
+Docker Compose reads values from `.env` automatically.
+
+Temporary custom host ports override:
 
 ```bash
 export FRONTEND_PORT=8090
@@ -192,7 +194,7 @@ Compose provisions:
 
 Backend container runs schema initialization (`npm --prefix backend run db:init`) on startup.
 
-If your PostgreSQL server is outside Docker, set:
+If your PostgreSQL server is outside Docker, set these values in `.env`:
 
 ```bash
 export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
@@ -200,7 +202,7 @@ export POSTGRES_SSL=false
 export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
 ```
 
-If your PostgreSQL server requires TLS, set:
+If your PostgreSQL server requires TLS, set in `.env`:
 
 ```bash
 export POSTGRES_SSL=true
@@ -219,7 +221,7 @@ For live development without rebuilding on every change:
 docker compose -f docker-compose.dev.yml up
 ```
 
-Live development with custom ports:
+Live development with temporary custom ports override:
 
 ```bash
 export FRONTEND_PORT=8090
