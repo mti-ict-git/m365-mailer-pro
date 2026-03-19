@@ -29,6 +29,23 @@ const pickNumber = (preferred, fallback, hardDefault) => {
 const pickString = (...values) =>
   values.find((value) => typeof value === "string" && value.trim().length > 0) || "";
 
+const isRecoverableSettingsReadError = (error) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? String(error.code) : "";
+  if (code === "42P01" || code === "28000" || code === "28P01" || code === "ECONNREFUSED" || code === "ETIMEDOUT") {
+    return true;
+  }
+
+  const message = "message" in error ? String(error.message).toLowerCase() : "";
+  return message.includes("no pg_hba.conf entry")
+    || message.includes("connection refused")
+    || message.includes("password authentication failed")
+    || message.includes("timeout");
+};
+
 const readPersistedSettings = async () => {
   try {
     const result = await query("SELECT settings FROM app_settings WHERE id = 1");
@@ -38,7 +55,7 @@ const readPersistedSettings = async () => {
 
     return asObject(result.rows[0].settings);
   } catch (error) {
-    if (typeof error === "object" && error && "code" in error && error.code === "42P01") {
+    if (isRecoverableSettingsReadError(error)) {
       return {};
     }
     throw error;

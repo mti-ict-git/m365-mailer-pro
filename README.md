@@ -116,6 +116,8 @@ Settings persistence order:
 - `.env` as fallback for Microsoft Graph credentials
 - `data/settings.json` as static defaults
 
+If PostgreSQL is temporarily unreachable, `GET /api/auth/settings` falls back to `.env` and `data/settings.json` instead of returning `500`.
+
 Test email endpoint:
 
 - `POST /api/auth/settings/test-email`
