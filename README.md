@@ -168,7 +168,7 @@ Vite proxies `/api` calls to `http://localhost:3001` in development.
 Run full stack with Docker Compose:
 
 ```bash
-docker compose up --build
+docker compose --env-file .env up --build
 ```
 
 Docker Compose reads values from `.env` automatically.
@@ -198,17 +198,17 @@ Backend container runs schema initialization (`npm --prefix backend run db:init`
 If your PostgreSQL server is outside Docker, set these values in `.env`:
 
 ```bash
-export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
-export POSTGRES_CREATE_DATABASE=false
-export POSTGRES_SSL=false
-export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
+POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
+POSTGRES_CREATE_DATABASE=false
+POSTGRES_SSL=false
+POSTGRES_SSL_REJECT_UNAUTHORIZED=false
 ```
 
 If your PostgreSQL server requires TLS, set in `.env`:
 
 ```bash
-export POSTGRES_SSL=true
-export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
+POSTGRES_SSL=true
+POSTGRES_SSL_REJECT_UNAUTHORIZED=false
 ```
 
 If backend logs include `no pg_hba.conf entry ... no encryption`, enable TLS:
@@ -220,7 +220,7 @@ POSTGRES_SSL=true
 When you change frontend or backend code and want image-based production containers, rebuild:
 
 ```bash
-docker compose up --build
+docker compose --env-file .env up --build
 ```
 
 For live development without rebuilding on every change:

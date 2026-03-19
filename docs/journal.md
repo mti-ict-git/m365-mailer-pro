@@ -153,3 +153,9 @@
 - Updated init-db flow to skip `CREATE DATABASE` when `POSTGRES_CREATE_DATABASE=false`.
 - Set compose default to `POSTGRES_CREATE_DATABASE=false` for external PostgreSQL deployments.
 - Updated README with managed PostgreSQL guidance and `pg_hba.conf ... no encryption` troubleshooting.
+
+## 2026-03-20 03:31:39 WITA
+
+- Updated compose backend services to source PostgreSQL, LDAP, and Graph settings from `.env` via `env_file`.
+- Removed interpolated PostgreSQL and credential environment overrides from compose backend services to avoid shell-variable precedence issues.
+- Updated README Docker commands to use `docker compose --env-file .env` for deterministic environment resolution.

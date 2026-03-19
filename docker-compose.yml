@@ -9,20 +9,7 @@ services:
     environment:
       NODE_ENV: production
       BACKEND_PORT: 3001
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
-      POSTGRES_URL: ${POSTGRES_URL:-postgresql://postgres:postgres@host.docker.internal:5432/emailBlasterDB}
-      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
-      POSTGRES_CREATE_DATABASE: ${POSTGRES_CREATE_DATABASE:-false}
-      POSTGRES_SSL: ${POSTGRES_SSL:-false}
-      POSTGRES_SSL_REJECT_UNAUTHORIZED: ${POSTGRES_SSL_REJECT_UNAUTHORIZED:-false}
-      LDAP_URL: ${LDAP_URL:-}
-      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
-      BIND_DN: ${BIND_DN:-}
-      BIND_PW: ${BIND_PW:-}
-      MS_GRAPH_CLIENT_ID: ${MS_GRAPH_CLIENT_ID:-}
-      MS_GRAPH_TENANT_ID: ${MS_GRAPH_TENANT_ID:-}
-      MS_GRAPH_CLIENT_SECRET: ${MS_GRAPH_CLIENT_SECRET:-}
-      MS_GRAPH_SCOPE: ${MS_GRAPH_SCOPE:-https://graph.microsoft.com/.default}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9103}
     command: sh -c "npm --prefix backend run db:init && npm --prefix backend run start"
     ports:
       - "${BACKEND_PORT:-5057}:3001"
