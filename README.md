@@ -100,6 +100,7 @@ Set LDAP and service configuration in `.env`:
 - `POSTGRES_USERNAME` (optional override for URL username)
 - `POSTGRES_PASSWORD` (optional override for URL password)
 - `POSTGRES_DATABASE`
+- `POSTGRES_CREATE_DATABASE` (optional, `true` or `false`, default `true`)
 - `POSTGRES_SSL` (optional, `true` or `false`)
 - `POSTGRES_SSL_REJECT_UNAUTHORIZED` (optional, `true` or `false`)
 - `MS_GRAPH_CLIENT_ID`
@@ -198,6 +199,7 @@ If your PostgreSQL server is outside Docker, set these values in `.env`:
 
 ```bash
 export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
+export POSTGRES_CREATE_DATABASE=false
 export POSTGRES_SSL=false
 export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
 ```
@@ -207,6 +209,12 @@ If your PostgreSQL server requires TLS, set in `.env`:
 ```bash
 export POSTGRES_SSL=true
 export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
+```
+
+If backend logs include `no pg_hba.conf entry ... no encryption`, enable TLS:
+
+```bash
+POSTGRES_SSL=true
 ```
 
 When you change frontend or backend code and want image-based production containers, rebuild:

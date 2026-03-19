@@ -146,3 +146,10 @@
 - Updated compose files to load `.env` directly via `env_file` for backend services.
 - Replaced hardcoded empty LDAP credentials in compose with environment-driven values.
 - Clarified README that `.env` is read automatically and `export` is only for temporary overrides.
+
+## 2026-03-19 23:40:15 WITA
+
+- Added `POSTGRES_CREATE_DATABASE` config to skip admin database creation in managed PostgreSQL.
+- Updated init-db flow to skip `CREATE DATABASE` when `POSTGRES_CREATE_DATABASE=false`.
+- Set compose default to `POSTGRES_CREATE_DATABASE=false` for external PostgreSQL deployments.
+- Updated README with managed PostgreSQL guidance and `pg_hba.conf ... no encryption` troubleshooting.

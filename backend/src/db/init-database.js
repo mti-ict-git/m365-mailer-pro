@@ -7,6 +7,9 @@ const createDatabaseIfMissing = async () => {
   if (!env.postgresUrl || !appDatabaseName) {
     return;
   }
+  if (!env.postgresCreateDatabase) {
+    return;
+  }
 
   const adminPool = createAdminPool();
   try {
