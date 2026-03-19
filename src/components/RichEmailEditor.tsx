@@ -36,7 +36,7 @@ export function RichEmailEditor({ value, onChange }: RichEmailEditorProps) {
   const previewHtml = useMemo(() => {
     let html = value;
     TEMPLATE_VARIABLES.forEach((v) => {
-      html = html.replaceAll(v.key, `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:4px;font-weight:500;">${v.sample}</span>`);
+      html = html.split(v.key).join(`<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:4px;font-weight:500;">${v.sample}</span>`);
     });
     return html;
   }, [value]);
