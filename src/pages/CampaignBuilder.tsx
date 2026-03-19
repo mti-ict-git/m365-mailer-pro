@@ -116,16 +116,7 @@ export default function CampaignBuilder() {
           )}
 
           {step === 2 && (
-            <>
-              <div className="flex items-center justify-between">
-                <Label>Email Body</Label>
-                <button onClick={() => update('htmlMode', !form.htmlMode)} className="text-xs text-primary font-medium hover:underline">
-                  {form.htmlMode ? 'Rich Text' : 'HTML Mode'}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">Use {'{{name}}'}, {'{{email}}'} for personalization</p>
-              <Textarea value={form.body} onChange={e => update('body', e.target.value)} rows={12} className="rounded-xl font-mono text-sm" />
-            </>
+            <RichEmailEditor value={form.body} onChange={(val) => update('body', val)} />
           )}
 
           {step === 3 && (
