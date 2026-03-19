@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,17 @@ import { toast } from "sonner";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
 
+interface TemplateDefinition {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+}
+
+interface TemplatesResponse {
+  templates: TemplateDefinition[];
+}
+
 export default function CampaignBuilder() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -19,8 +30,9 @@ export default function CampaignBuilder() {
     manualEmails: "", body: "<p>Hello {{name}},</p><p>Your email content here.</p>", htmlMode: false,
   });
   const [recipients, setRecipients] = useState<{ email: string; name?: string }[]>([]);
+  const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
 
-  const update = (key: string, val: any) => setForm(f => ({ ...f, [key]: val }));
+  const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => setForm(f => ({ ...f, [key]: val }));
 
   const parseManual = () => {
     const emails = form.manualEmails.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
@@ -34,6 +46,23 @@ export default function CampaignBuilder() {
     toast.success("Campaign created! (Demo mode — no emails sent)");
     navigate("/campaigns");
   };
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const response = await fetch("/api/auth/templates");
+        if (!response.ok) {
+          throw new Error("Failed");
+        }
+        const payload = (await response.json()) as TemplatesResponse;
+        setTemplates(payload.templates || []);
+      } catch {
+        setTemplates([]);
+      }
+    };
+
+    void loadTemplates();
+  }, []);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -116,7 +145,30 @@ export default function CampaignBuilder() {
           )}
 
           {step === 2 && (
-            <RichEmailEditor value={form.body} onChange={(val) => update('body', val)} />
+            <div className="space-y-4">
+              {templates.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Template</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {templates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => {
+                          update("subject", template.subject);
+                          update("body", template.body);
+                        }}
+                        className="text-left border rounded-xl px-3 py-2 hover:border-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-foreground">{template.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{template.subject}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <RichEmailEditor value={form.body} onChange={(val) => update("body", val)} />
+            </div>
           )}
 
           {step === 3 && (

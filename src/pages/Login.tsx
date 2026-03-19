@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,17 +8,27 @@ import { Zap, Shield, Lock, User, Server, Eye, EyeOff, AlertCircle, Loader2 } fr
 import { motion } from "framer-motion";
 import loginBg from "@/assets/login-bg.jpg";
 
-const DOMAINS = [
+const DEFAULT_DOMAINS = [
   { value: "mti.local", label: "MTI Corporate (mti.local)" },
   { value: "mti.com", label: "MTI Cloud (mti.com)" },
 ];
 
+interface SettingsResponse {
+  ldap?: {
+    domains?: Array<{
+      id: string;
+      label: string;
+    }>;
+  };
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, isLoading, error } = useAuth();
+  const [domains, setDomains] = useState(DEFAULT_DOMAINS);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [domain, setDomain] = useState(DOMAINS[0].value);
+  const [domain, setDomain] = useState(DEFAULT_DOMAINS[0].value);
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState("");
 
@@ -44,6 +54,31 @@ export default function Login() {
   };
 
   const displayError = localError || error;
+
+  useEffect(() => {
+    const loadDomains = async () => {
+      try {
+        const response = await fetch("/api/auth/settings");
+        if (!response.ok) {
+          throw new Error("Failed");
+        }
+        const settings = (await response.json()) as SettingsResponse;
+        const backendDomains = settings.ldap?.domains || [];
+        if (backendDomains.length === 0) {
+          return;
+        }
+        const normalizedDomains = backendDomains.map((item) => ({
+          value: item.id,
+          label: item.label,
+        }));
+        setDomains(normalizedDomains);
+        setDomain(normalizedDomains[0].value);
+      } catch {
+        setDomains(DEFAULT_DOMAINS);
+      }
+    };
+    void loadDomains();
+  }, []);
 
   return (
     <div className="min-h-screen flex">
@@ -126,7 +161,7 @@ export default function Login() {
                 Directory
               </Label>
               <div className="flex gap-2">
-                {DOMAINS.map((d) => (
+                {domains.map((d) => (
                   <button
                     key={d.value}
                     type="button"
@@ -153,14 +188,14 @@ export default function Login() {
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="john.doe"
+                  placeholder="sAMAccountName"
                   className="pl-10 rounded-xl h-11"
                   autoComplete="username"
                   autoFocus
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                {domain === "mti.local" ? "e.g. john.doe or DOMAIN\\john.doe" : "Your corporate email username"}
+                {domain === "mti.local" ? "Use your sAMAccountName, e.g. john.doe or DOMAIN\\john.doe" : "Use your Active Directory sAMAccountName"}
               </p>
             </div>
 

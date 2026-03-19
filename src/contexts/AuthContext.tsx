@@ -16,6 +16,21 @@ interface AuthContextType {
   error: string | null;
 }
 
+interface LoginResponse {
+  user: User;
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+const parseErrorMessage = async (response: Response) => {
+  try {
+    const data = (await response.json()) as { message?: string };
+    return data.message || "Authentication failed";
+  } catch {
+    return "Authentication failed";
+  }
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -31,30 +46,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      // Simulate LDAP authentication delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          domain,
+        }),
+      });
 
-      // Demo validation — replace with real LDAP/AD API call
-      if (!username || !password) {
-        throw new Error("Username and password are required");
+      if (!response.ok) {
+        const message = await parseErrorMessage(response);
+        throw new Error(message);
       }
 
-      if (password.length < 3) {
-        throw new Error("Invalid credentials. Please check your username and password.");
+      const payload = (await response.json()) as LoginResponse;
+      if (!payload.user) {
+        throw new Error("Authentication failed");
       }
 
-      const authenticatedUser: User = {
-        username,
-        displayName: username.charAt(0).toUpperCase() + username.slice(1).replace(/[._]/g, " "),
-        email: `${username}@${domain}`,
-        domain,
-      };
-
-      sessionStorage.setItem("mti_auth_user", JSON.stringify(authenticatedUser));
-      setUser(authenticatedUser);
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
-      throw err;
+      sessionStorage.setItem("mti_auth_user", JSON.stringify(payload.user));
+      setUser(payload.user);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Authentication failed";
+      setError(message);
+      throw error;
     } finally {
       setIsLoading(false);
     }

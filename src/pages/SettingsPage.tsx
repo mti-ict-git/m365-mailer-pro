@@ -1,18 +1,68 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+interface BackendSettings {
+  application?: {
+    defaultBatchSize?: number;
+    defaultBatchDelaySeconds?: number;
+  };
+  mail?: {
+    defaultSender?: string;
+    recipientWarningThreshold?: number;
+  };
+}
+
 export default function SettingsPage() {
   const [config, setConfig] = useState({
     tenantId: "", clientId: "", defaultSender: "", batchSize: "50", batchDelay: "2", recipientWarning: "100",
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const update = (key: string, val: string) => setConfig(c => ({ ...c, [key]: val }));
 
   const handleSave = () => toast.success("Settings saved (demo mode)");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const response = await fetch("/api/auth/settings");
+        if (!response.ok) {
+          throw new Error("Failed to load settings");
+        }
+
+        const settings = (await response.json()) as BackendSettings;
+        if (!isMounted) {
+          return;
+        }
+
+        setConfig((previous) => ({
+          ...previous,
+          defaultSender: settings.mail?.defaultSender || previous.defaultSender,
+          batchSize: String(settings.application?.defaultBatchSize ?? previous.batchSize),
+          batchDelay: String(settings.application?.defaultBatchDelaySeconds ?? previous.batchDelay),
+          recipientWarning: String(settings.mail?.recipientWarningThreshold ?? previous.recipientWarning),
+        }));
+      } catch {
+        toast.error("Unable to load backend settings");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -60,7 +110,7 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      <Button onClick={handleSave} className="rounded-xl">Save Settings</Button>
+      <Button onClick={handleSave} disabled={isLoading} className="rounded-xl">Save Settings</Button>
     </div>
   );
 }

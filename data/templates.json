@@ -1,0 +1,35 @@
+{
+  "templates": [
+    {
+      "id": "welcome-announcement",
+      "name": "Welcome Announcement",
+      "category": "general",
+      "subject": "Welcome to {{company}}",
+      "body": "<p>Hello {{name}},</p><p>Welcome to {{company}}. We are excited to have you with us.</p><p>Best regards,<br/>{{senderName}}</p>"
+    },
+    {
+      "id": "security-notice",
+      "name": "Security Notice",
+      "category": "security",
+      "subject": "Action Required: Security Update",
+      "body": "<p>Hello {{name}},</p><p>Please review the new security policy and update your password before {{dueDate}}.</p><p>Thank you,<br/>Security Team</p>"
+    },
+    {
+      "id": "event-invitation",
+      "name": "Event Invitation",
+      "category": "events",
+      "subject": "Invitation: {{eventName}}",
+      "body": "<p>Hello {{name}},</p><p>You are invited to {{eventName}} on {{eventDate}} at {{eventLocation}}.</p><p>Regards,<br/>Event Committee</p>"
+    }
+  ],
+  "variables": [
+    "{{name}}",
+    "{{email}}",
+    "{{company}}",
+    "{{senderName}}",
+    "{{dueDate}}",
+    "{{eventName}}",
+    "{{eventDate}}",
+    "{{eventLocation}}"
+  ]
+}

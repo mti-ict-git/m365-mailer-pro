@@ -1,0 +1,27 @@
+{
+  "application": {
+    "name": "MTI Email Blaster",
+    "defaultTimezone": "Asia/Jakarta",
+    "maxRecipientsPerCampaign": 10000,
+    "defaultBatchSize": 50,
+    "defaultBatchDelaySeconds": 2
+  },
+  "ldap": {
+    "loginAttribute": "sAMAccountName",
+    "domains": [
+      {
+        "id": "mti.local",
+        "label": "MTI Corporate (mti.local)"
+      },
+      {
+        "id": "mti.com",
+        "label": "MTI Cloud (mti.com)"
+      }
+    ]
+  },
+  "mail": {
+    "provider": "microsoft-graph",
+    "defaultSender": "",
+    "recipientWarningThreshold": 100
+  }
+}
