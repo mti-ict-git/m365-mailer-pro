@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Search, Plus } from "lucide-react";
+import { Mail, Search, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -16,6 +16,27 @@ export default function Campaigns() {
   const [filter, setFilter] = useState<CampaignStatus | "all">("all");
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "DELETE",
+      });
+      if (response.status === 404) {
+        toast.error("Campaign not found");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Failed to delete campaign");
+      }
+
+      setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+      toast.success("Campaign deleted");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to delete campaign";
+      toast.error(message);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -89,6 +110,7 @@ export default function Campaigns() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Recipients</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Progress</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -114,12 +136,38 @@ export default function Campaigns() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground text-xs">{new Date(campaign.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/campaigns/${campaign.id}/edit`);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-destructive hover:text-destructive"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleDeleteCampaign(campaign.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
                     <Mail className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     No campaigns found
                   </td>

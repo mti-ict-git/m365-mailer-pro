@@ -281,12 +281,17 @@ export default function CampaignBuilder() {
           throw new Error("Campaign data is unavailable");
         }
 
+        const recipientRows = (payload.recipients || []).map((recipient) => ({
+          email: recipient.email,
+          name: recipient.name,
+        }));
         setForm((current) => ({
           ...current,
           name: payload.campaign?.name || "",
           subject: payload.campaign?.subject || "",
           sender: payload.campaign?.sender || "",
-          body: "",
+          body: payload.campaign?.bodyHtml || current.body,
+          manualEmails: recipientRows.map((recipient) => recipient.email).join("\n"),
         }));
 
         setAttachments(
@@ -297,16 +302,8 @@ export default function CampaignBuilder() {
             contentBytes: attachment.contentBytes || "",
           })),
         );
-
-        const recipientRows = (payload.recipients || []).map((recipient) => ({
-          email: recipient.email,
-          name: recipient.name,
-        }));
+        setAttachmentsDirty(false);
         setRecipients(recipientRows);
-        setForm((current) => ({
-          ...current,
-          manualEmails: recipientRows.map((recipient) => recipient.email).join("\n"),
-        }));
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unable to load campaign";
         toast.error(message);

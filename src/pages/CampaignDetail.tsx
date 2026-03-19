@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CampaignSummary, DeliveryLog } from "@/lib/api-types";
@@ -15,6 +15,7 @@ export default function CampaignDetail() {
   const [logs, setLogs] = useState<DeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -103,6 +104,33 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleDeleteCampaign = async () => {
+    if (!id) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/campaigns/${id}`, {
+        method: "DELETE",
+      });
+      if (response.status === 404) {
+        toast.error("Campaign not found");
+        navigate("/campaigns");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Failed to delete campaign");
+      }
+      toast.success("Campaign deleted");
+      navigate("/campaigns");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to delete campaign";
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const progress = campaign.totalRecipients > 0 ? Math.round(((campaign.sent + campaign.failed) / campaign.totalRecipients) * 100) : 0;
 
   return (
@@ -111,9 +139,17 @@ export default function CampaignDetail() {
         <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <Button variant="outline" size="sm" onClick={() => void handleDispatchNow()} disabled={isDispatching}>
-          Dispatch Now
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/campaigns/${id}/edit`)}>
+            <Pencil className="h-4 w-4 mr-2" /> Edit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void handleDispatchNow()} disabled={isDispatching}>
+            Dispatch Now
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void handleDeleteCampaign()} disabled={isDeleting} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          </Button>
+        </div>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl shadow-card border p-6 space-y-4">
