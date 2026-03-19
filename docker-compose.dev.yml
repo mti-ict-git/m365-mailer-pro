@@ -9,7 +9,7 @@ services:
       NODE_ENV: development
       BACKEND_PORT: ${BACKEND_PORT:-3001}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
-    command: sh -c "npm --prefix backend install && npm --prefix backend run db:init && npm --prefix backend run dev"
+    command: sh -c "npm --prefix backend install && if [ \"$${RUN_DB_INIT_ON_STARTUP:-false}\" = \"true\" ]; then npm --prefix backend run db:init; fi; npm --prefix backend run dev"
     volumes:
       - ./:/app
       - backend_node_modules:/app/backend/node_modules
