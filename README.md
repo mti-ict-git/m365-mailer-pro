@@ -62,6 +62,8 @@ Response body:
 - `GET /api/campaigns`
 - `GET /api/campaigns/:id`
 - `POST /api/campaigns`
+- `PUT /api/campaigns/:id`
+- `DELETE /api/campaigns/:id`
 - `POST /api/campaigns/:id/dispatch`
 - `GET /api/logs`
 
@@ -76,6 +78,7 @@ Campaign create supports optional attachments:
   - `contentBytes` (base64 string)
 - Limits: max 5 files, max 3MB per file, max 10MB total.
 - Campaigns are dispatched asynchronously after creation; status transitions from `scheduled`/`sending` to `completed` or `failed`.
+- `GET /api/campaigns/:id` also returns `recipients` for edit flow prefill.
 
 ## Authentication Status Codes
 
@@ -158,3 +161,30 @@ npm run dev:full
 ```
 
 Vite proxies `/api` calls to `http://localhost:3001` in development.
+
+## Docker
+
+Run full stack with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- Frontend: `http://localhost:8080`
+- Backend API: `http://localhost:3001`
+
+Compose provisions:
+
+- frontend container using `Dockerfile` + Nginx reverse proxy for `/api`
+- backend container using `backend/Dockerfile`
+- external PostgreSQL connection via `POSTGRES_URL`
+
+Backend container runs schema initialization (`npm --prefix backend run db:init`) on startup.
+
+If your PostgreSQL server is outside Docker, set:
+
+```bash
+export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
+```

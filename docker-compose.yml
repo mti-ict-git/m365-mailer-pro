@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: 3001
+      CORS_ORIGIN: http://localhost:8080
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://postgres:postgres@host.docker.internal:5432/emailBlasterDB}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
+      LDAP_URL: ""
+      LDAP_BASE_DN: ""
+      BIND_DN: ""
+      BIND_PW: ""
+      MS_GRAPH_CLIENT_ID: ${MS_GRAPH_CLIENT_ID:-}
+      MS_GRAPH_TENANT_ID: ${MS_GRAPH_TENANT_ID:-}
+      MS_GRAPH_CLIENT_SECRET: ${MS_GRAPH_CLIENT_SECRET:-}
+      MS_GRAPH_SCOPE: ${MS_GRAPH_SCOPE:-https://graph.microsoft.com/.default}
+    command: sh -c "npm --prefix backend run db:init && npm --prefix backend run start"
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:8080"

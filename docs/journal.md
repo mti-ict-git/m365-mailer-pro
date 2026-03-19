@@ -97,3 +97,27 @@
 - Added Microsoft Graph shared mail utilities for token and mail sending.
 - Updated campaign delivery flow to mark recipients as `sent` or `failed` and finalize campaign status.
 - Verified pending campaign can be retried and transitions to completed with sent logs.
+
+## 2026-03-19 23:02:05 WITA
+
+- Added campaign CRUD backend support with `PUT /api/campaigns/:id` and `DELETE /api/campaigns/:id`.
+- Extended campaign detail API response to include `recipients` for edit prefill.
+- Added campaign edit route `/campaigns/:id/edit` and reused builder for update flow.
+- Added edit and delete actions on campaigns list and campaign detail pages.
+- Updated campaign update flow to reschedule and redispatch updated recipients/content.
+- Updated README with campaign CRUD endpoints and campaign detail recipients response.
+
+## 2026-03-19 23:05:33 WITA
+
+- Added containerized deployment with root `Dockerfile` for frontend (Vite build + Nginx).
+- Added `backend/Dockerfile` for Node.js backend runtime.
+- Added `docker/nginx.conf` to serve SPA and proxy `/api` requests to backend service.
+- Added `docker-compose.yml` to orchestrate frontend, backend, and PostgreSQL services.
+- Added `.dockerignore` to reduce build context and exclude local artifacts.
+- Updated README with Docker run instructions and service endpoints.
+
+## 2026-03-19 23:07:21 WITA
+
+- Updated `docker-compose.yml` to remove bundled PostgreSQL service and use existing external PostgreSQL server.
+- Added `POSTGRES_URL` and `POSTGRES_DATABASE` environment-driven configuration for backend container.
+- Updated README Docker section to document external PostgreSQL usage with `host.docker.internal`.
