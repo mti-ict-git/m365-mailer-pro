@@ -3,7 +3,9 @@ import { env } from "./config/env.js";
 import { ensureDatabaseReady } from "./db/init-database.js";
 
 const start = async () => {
-  await ensureDatabaseReady();
+  if (env.runDbInitOnStartup) {
+    await ensureDatabaseReady();
+  }
 
   app.listen(env.port, () => {
     process.stdout.write(`Backend listening on http://localhost:${env.port}\n`);

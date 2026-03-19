@@ -193,7 +193,18 @@ Compose provisions:
 - backend container using `backend/Dockerfile`
 - external PostgreSQL connection via `POSTGRES_URL`
 
-Backend container runs schema initialization (`npm --prefix backend run db:init`) on startup.
+Backend container starts server directly without running schema initialization on startup.
+To run schema initialization on startup, set this in `.env`:
+
+```bash
+RUN_DB_INIT_ON_STARTUP=true
+```
+
+Or run one-time initialization manually:
+
+```bash
+npm --prefix backend run db:init
+```
 
 If your PostgreSQL server is outside Docker, set these values in `.env`:
 
@@ -226,7 +237,7 @@ docker compose --env-file .env up --build
 For live development without rebuilding on every change:
 
 ```bash
-docker compose -f docker-compose.dev.yml up
+docker compose --env-file .env -f docker-compose.dev.yml up
 ```
 
 Live development with temporary custom ports override:
@@ -235,7 +246,7 @@ Live development with temporary custom ports override:
 export FRONTEND_PORT=8090
 export BACKEND_PORT=3002
 export CORS_ORIGIN=http://localhost:8090
-docker compose -f docker-compose.dev.yml up
+docker compose --env-file .env -f docker-compose.dev.yml up
 ```
 
 Development services:

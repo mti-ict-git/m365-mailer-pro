@@ -18,6 +18,7 @@ const parsePort = (value, fallback) => {
 export const env = {
   nodeEnv: read("NODE_ENV", "development"),
   port: parsePort(read("BACKEND_PORT", "3001"), 3001),
+  runDbInitOnStartup: read("RUN_DB_INIT_ON_STARTUP", "false") === "true",
   corsOrigin: read("CORS_ORIGIN", "http://localhost:8080"),
   ldapUrl: read("LDAP_URL"),
   ldapBaseDn: read("LDAP_BASE_DN"),

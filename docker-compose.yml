@@ -10,7 +10,7 @@ services:
       NODE_ENV: production
       BACKEND_PORT: 3001
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9103}
-    command: sh -c "if [ \"$${RUN_DB_INIT_ON_STARTUP:-false}\" = \"true\" ]; then npm --prefix backend run db:init; fi; npm --prefix backend run start"
+    command: sh -c "npm --prefix backend run start"
     ports:
       - "${BACKEND_PORT:-5057}:3001"
 

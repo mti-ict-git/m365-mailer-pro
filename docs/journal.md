@@ -159,3 +159,15 @@
 - Updated compose backend services to source PostgreSQL, LDAP, and Graph settings from `.env` via `env_file`.
 - Removed interpolated PostgreSQL and credential environment overrides from compose backend services to avoid shell-variable precedence issues.
 - Updated README Docker commands to use `docker compose --env-file .env` for deterministic environment resolution.
+
+## 2026-03-20 04:03:00 WITA
+
+- Changed backend container startup to skip `db:init` by default in production and development compose files.
+- Added optional startup migration toggle via `RUN_DB_INIT_ON_STARTUP=true`.
+- Updated README Docker section to document optional startup init behavior and consistent `--env-file .env` usage.
+
+## 2026-03-20 04:06:21 WITA
+
+- Updated backend server startup to run database initialization only when `RUN_DB_INIT_ON_STARTUP=true`.
+- Simplified compose backend commands to always run backend start/dev without inline init shell logic.
+- Added README guidance for one-time manual schema initialization using `npm --prefix backend run db:init`.
