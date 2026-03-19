@@ -54,7 +54,18 @@ const shouldUseSslByDefault = () => {
   return !isLocalHost;
 };
 
-const sslEnabled = env.postgresSsl || shouldUseSslByDefault();
+const resolveSslEnabled = () => {
+  const raw = typeof env.postgresSslRaw === "string" ? env.postgresSslRaw.trim().toLowerCase() : "";
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  return shouldUseSslByDefault();
+};
+
+const sslEnabled = resolveSslEnabled();
 
 const buildPoolOptions = (connectionString) => ({
   connectionString,

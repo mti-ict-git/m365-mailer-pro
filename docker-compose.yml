@@ -10,6 +10,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://postgres:postgres@host.docker.internal:5432/emailBlasterDB}
       POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
+      POSTGRES_SSL: ${POSTGRES_SSL:-false}
+      POSTGRES_SSL_REJECT_UNAUTHORIZED: ${POSTGRES_SSL_REJECT_UNAUTHORIZED:-false}
       LDAP_URL: ""
       LDAP_BASE_DN: ""
       BIND_DN: ""

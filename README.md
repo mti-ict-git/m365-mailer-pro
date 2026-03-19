@@ -196,6 +196,15 @@ If your PostgreSQL server is outside Docker, set:
 
 ```bash
 export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
+export POSTGRES_SSL=false
+export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
+```
+
+If your PostgreSQL server requires TLS, set:
+
+```bash
+export POSTGRES_SSL=true
+export POSTGRES_SSL_REJECT_UNAUTHORIZED=false
 ```
 
 When you change frontend or backend code and want image-based production containers, rebuild:

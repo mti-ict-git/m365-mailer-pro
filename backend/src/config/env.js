@@ -32,6 +32,7 @@ export const env = {
   postgresUsername: read("POSTGRES_USERNAME"),
   postgresPassword: read("POSTGRES_PASSWORD"),
   postgresDatabase: read("POSTGRES_DATABASE", "emailBlasterDB"),
+  postgresSslRaw: read("POSTGRES_SSL", ""),
   postgresSsl: read("POSTGRES_SSL", "") === "true",
   postgresSslRejectUnauthorized: read("POSTGRES_SSL_REJECT_UNAUTHORIZED", "false") === "true",
   dataPath: path.join(rootPath, "data"),
