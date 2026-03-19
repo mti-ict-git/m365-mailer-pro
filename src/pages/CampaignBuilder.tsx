@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
+import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
@@ -115,16 +116,7 @@ export default function CampaignBuilder() {
           )}
 
           {step === 2 && (
-            <>
-              <div className="flex items-center justify-between">
-                <Label>Email Body</Label>
-                <button onClick={() => update('htmlMode', !form.htmlMode)} className="text-xs text-primary font-medium hover:underline">
-                  {form.htmlMode ? 'Rich Text' : 'HTML Mode'}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">Use {'{{name}}'}, {'{{email}}'} for personalization</p>
-              <Textarea value={form.body} onChange={e => update('body', e.target.value)} rows={12} className="rounded-xl font-mono text-sm" />
-            </>
+            <RichEmailEditor value={form.body} onChange={(val) => update('body', val)} />
           )}
 
           {step === 3 && (
