@@ -1,29 +1,64 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
-import { mockLogs } from "@/lib/mock-data";
+import { DeliveryLog } from "@/lib/api-types";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 export default function Logs() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [logs, setLogs] = useState<DeliveryLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = mockLogs.filter(l => {
-    const matchSearch = l.recipient.toLowerCase().includes(search.toLowerCase()) || l.campaignName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || l.status === statusFilter;
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLogs = async () => {
+      try {
+        const response = await fetch("/api/logs");
+        if (!response.ok) {
+          throw new Error("Failed to load logs");
+        }
+        const payload = (await response.json()) as { logs?: DeliveryLog[] };
+        if (mounted) {
+          setLogs(payload.logs || []);
+        }
+      } catch {
+        toast.error("Unable to load logs");
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadLogs();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = logs.filter((log) => {
+    const matchSearch = log.recipient.toLowerCase().includes(search.toLowerCase())
+      || log.campaignName.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || log.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const exportCsv = () => {
     const header = "Campaign,Recipient,Status,Timestamp,Error\n";
-    const rows = filtered.map(l => `${l.campaignName},${l.recipient},${l.status},${l.timestamp},${l.error || ''}`).join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const rows = filtered
+      .map((log) => `${log.campaignName},${log.recipient},${log.status},${log.timestamp},${log.error || ""}`)
+      .join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'email-logs.csv'; a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "email-logs.csv";
+    a.click();
     URL.revokeObjectURL(url);
     toast.success("Logs exported");
   };
@@ -46,9 +81,9 @@ export default function Logs() {
           <Input placeholder="Search logs..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl" />
         </div>
         <div className="flex gap-1.5">
-          {['all', 'sent', 'failed', 'pending'].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-              {s}
+          {["all", "sent", "failed", "pending"].map((status) => (
+            <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${statusFilter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+              {status}
             </button>
           ))}
         </div>
@@ -67,16 +102,16 @@ export default function Logs() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map(l => (
-                <tr key={l.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3 font-medium text-card-foreground">{l.campaignName}</td>
-                  <td className="px-5 py-3 text-card-foreground">{l.recipient}</td>
-                  <td className="px-5 py-3"><StatusBadge status={l.status} type="log" /></td>
-                  <td className="px-5 py-3 text-muted-foreground text-xs">{l.timestamp}</td>
-                  <td className="px-5 py-3 text-destructive text-xs">{l.error || '—'}</td>
+              {filtered.map((log) => (
+                <tr key={log.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-5 py-3 font-medium text-card-foreground">{log.campaignName}</td>
+                  <td className="px-5 py-3 text-card-foreground">{log.recipient}</td>
+                  <td className="px-5 py-3"><StatusBadge status={log.status} type="log" /></td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-destructive text-xs">{log.error || "—"}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />

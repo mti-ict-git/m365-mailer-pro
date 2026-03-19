@@ -1,16 +1,46 @@
+import { useEffect, useState } from "react";
 import { Mail, Send, CheckCircle, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { mockCampaigns } from "@/lib/mock-data";
+import { CampaignSummary } from "@/lib/api-types";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const totalSent = mockCampaigns.reduce((a, c) => a + c.sent, 0);
-  const totalFailed = mockCampaigns.reduce((a, c) => a + c.failed, 0);
-  const successRate = totalSent + totalFailed > 0 ? ((totalSent / (totalSent + totalFailed)) * 100).toFixed(1) : '0';
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCampaigns = async () => {
+      try {
+        const response = await fetch("/api/campaigns");
+        if (!response.ok) {
+          throw new Error("Failed to load dashboard data");
+        }
+        const payload = (await response.json()) as { campaigns?: CampaignSummary[] };
+        if (mounted) {
+          setCampaigns(payload.campaigns || []);
+        }
+      } catch {
+        toast.error("Unable to load dashboard data");
+      }
+    };
+
+    void loadCampaigns();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const totalSent = campaigns.reduce((value, campaign) => value + campaign.sent, 0);
+  const totalFailed = campaigns.reduce((value, campaign) => value + campaign.failed, 0);
+  const successRate = totalSent + totalFailed > 0
+    ? ((totalSent / (totalSent + totalFailed)) * 100).toFixed(1)
+    : "0";
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -25,9 +55,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Total Campaigns" value={mockCampaigns.length} icon={Mail} index={0} trend={{ value: "+2 this week", positive: true }} />
+        <KpiCard title="Total Campaigns" value={campaigns.length} icon={Mail} index={0} />
         <KpiCard title="Emails Sent" value={totalSent.toLocaleString()} icon={Send} index={1} subtitle="Across all campaigns" />
-        <KpiCard title="Success Rate" value={`${successRate}%`} icon={CheckCircle} index={2} trend={{ value: "99.3% avg", positive: true }} />
+        <KpiCard title="Success Rate" value={`${successRate}%`} icon={CheckCircle} index={2} />
         <KpiCard title="Failed" value={totalFailed} icon={AlertTriangle} index={3} subtitle={`${totalFailed} delivery failures`} />
       </div>
 
@@ -48,21 +78,23 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {mockCampaigns.slice(0, 5).map((c) => {
-                const rate = c.sent + c.failed > 0 ? ((c.sent / (c.sent + c.failed)) * 100).toFixed(1) : '-';
+              {campaigns.slice(0, 5).map((campaign) => {
+                const rate = campaign.sent + campaign.failed > 0
+                  ? ((campaign.sent / (campaign.sent + campaign.failed)) * 100).toFixed(1)
+                  : "0";
                 return (
-                  <tr key={c.id} className="hover:bg-muted/20 cursor-pointer transition-colors" onClick={() => navigate(`/campaigns/${c.id}`)}>
+                  <tr key={campaign.id} className="hover:bg-muted/20 cursor-pointer transition-colors" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
                     <td className="px-5 py-3.5">
                       <div>
-                        <p className="font-medium text-card-foreground">{c.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{c.subject}</p>
+                        <p className="font-medium text-card-foreground">{campaign.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{campaign.subject}</p>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                    <td className="px-5 py-3.5 text-card-foreground">{c.totalRecipients.toLocaleString()}</td>
-                    <td className="px-5 py-3.5 text-card-foreground">{c.sent.toLocaleString()}</td>
+                    <td className="px-5 py-3.5"><StatusBadge status={campaign.status} /></td>
+                    <td className="px-5 py-3.5 text-card-foreground">{campaign.totalRecipients.toLocaleString()}</td>
+                    <td className="px-5 py-3.5 text-card-foreground">{campaign.sent.toLocaleString()}</td>
                     <td className="px-5 py-3.5 text-card-foreground">{rate}%</td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{c.createdAt}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground">{new Date(campaign.createdAt).toLocaleDateString()}</td>
                   </tr>
                 );
               })}

@@ -17,6 +17,7 @@ M365 Mailer Pro is a hybrid-ready web dashboard for campaign delivery through Mi
 ## LDAP Login
 
 The login flow uses LDAP with `sAMAccountName` as the username attribute.
+The backend also accepts UPN format and domain-assisted lookup fallback.
 
 API endpoint:
 
@@ -52,13 +53,24 @@ Response body:
 
 - `GET /api/health`
 - `GET /api/auth/settings`
+- `POST /api/auth/settings`
+- `POST /api/auth/settings/test-email`
 - `GET /api/auth/templates`
+
+## Campaign APIs
+
+- `GET /api/campaigns`
+- `GET /api/campaigns/:id`
+- `POST /api/campaigns`
+- `GET /api/logs`
+
+`Dashboard`, `Campaigns`, `Campaign Detail`, `Logs`, and `New Campaign` pages now use live backend APIs and PostgreSQL data.
 
 ## Authentication Status Codes
 
 - `200` login success.
 - `401` invalid username/password.
-- `503` LDAP service unavailable or backend LDAP configuration is incomplete.
+- `503` LDAP service unavailable, certificate issue, or backend LDAP configuration is incomplete.
 
 ## Environment Variables
 
@@ -71,12 +83,34 @@ Set LDAP and service configuration in `.env`:
 - `BACKEND_PORT` (optional, default `3001`)
 - `CORS_ORIGIN` (optional, default `http://localhost:8080`)
 - `POSTGRES_URL`
+- `POSTGRES_USERNAME` (optional override for URL username)
+- `POSTGRES_PASSWORD` (optional override for URL password)
 - `POSTGRES_DATABASE`
+- `POSTGRES_SSL` (optional, `true` or `false`)
+- `POSTGRES_SSL_REJECT_UNAUTHORIZED` (optional, `true` or `false`)
+- `MS_GRAPH_CLIENT_ID`
+- `MS_GRAPH_TENANT_ID`
+- `MS_GRAPH_CLIENT_SECRET`
+- `MS_GRAPH_SCOPE` (optional, default `https://graph.microsoft.com/.default`)
+
+`GET /api/auth/settings` reads Microsoft Graph tenant/client values from environment variables and does not expose the client secret value.
+
+Settings persistence order:
+
+- Database (`app_settings`) as the primary source
+- `.env` as fallback for Microsoft Graph credentials
+- `data/settings.json` as static defaults
+
+Test email endpoint:
+
+- `POST /api/auth/settings/test-email`
+- Request body: `{ "to": "recipient@company.com" }`
+- Uses current saved Microsoft Graph settings and default sender.
 
 ## Database Schema Source
 
 - SQL source of truth: `backend/sql/schema.sql`
-- Current tables: `app_users`, `login_audits`, `campaigns`, `recipients`
+- Current tables: `app_users`, `login_audits`, `campaigns`, `recipients`, `app_settings`
 
 ## Run Locally
 

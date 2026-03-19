@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   name VARCHAR(200) NOT NULL,
   subject VARCHAR(255) NOT NULL,
   sender VARCHAR(255) NOT NULL,
+  body_html TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'draft',
   total_recipients INTEGER NOT NULL DEFAULT 0,
   sent_count INTEGER NOT NULL DEFAULT 0,
@@ -36,6 +37,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS body_html TEXT;
+
 CREATE TABLE IF NOT EXISTS recipients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -44,6 +47,13 @@ CREATE TABLE IF NOT EXISTS recipients (
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_login_audits_created_at ON login_audits(created_at DESC);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ interface TemplatesResponse {
   templates: TemplateDefinition[];
 }
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function CampaignBuilder() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -31,20 +33,107 @@ export default function CampaignBuilder() {
   });
   const [recipients, setRecipients] = useState<{ email: string; name?: string }[]>([]);
   const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => setForm(f => ({ ...f, [key]: val }));
 
+  const parseRecipientsFromInput = () => {
+    const emails = form.manualEmails.split(/[\n,;]+/)
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+    const parsed = emails.map((email) => ({ email, name: undefined }));
+    const unique = parsed.filter((recipient, index, all) =>
+      all.findIndex((value) => value.email === recipient.email) === index);
+    const valid = unique.filter((recipient) => emailRegex.test(recipient.email));
+    const invalidCount = unique.length - valid.length;
+    return { valid, invalidCount };
+  };
+
   const parseManual = () => {
-    const emails = form.manualEmails.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
-    const parsed = emails.map(e => ({ email: e, name: undefined }));
-    const unique = parsed.filter((r, i, a) => a.findIndex(x => x.email === r.email) === i);
+    const { valid, invalidCount } = parseRecipientsFromInput();
+    const unique = valid;
     setRecipients(unique);
+    if (invalidCount > 0) {
+      toast.warning(`${unique.length} recipients parsed, ${invalidCount} invalid skipped`);
+      return;
+    }
     toast.success(`${unique.length} recipients parsed`);
   };
 
-  const handleSend = () => {
-    toast.success("Campaign created! (Demo mode — no emails sent)");
-    navigate("/campaigns");
+  const handleCsvUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = typeof reader.result === "string" ? reader.result : "";
+      const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        toast.error("CSV file is empty");
+        return;
+      }
+
+      const rows = lines.map((line) => line.split(",").map((value) => value.trim()));
+      const hasHeader = rows[0].some((value) => value.toLowerCase() === "email");
+      const dataRows = hasHeader ? rows.slice(1) : rows;
+      const mapped = dataRows
+        .map((columns) => ({
+          email: (columns[0] || "").toLowerCase(),
+          name: columns[1] || undefined,
+        }))
+        .filter((recipient) => Boolean(recipient.email) && emailRegex.test(recipient.email));
+      const unique = mapped.filter((recipient, index, all) =>
+        all.findIndex((value) => value.email === recipient.email) === index);
+
+      setRecipients(unique);
+      toast.success(`${unique.length} recipients loaded from CSV`);
+    };
+
+    reader.onerror = () => {
+      toast.error("Unable to read CSV file");
+    };
+
+    reader.readAsText(file);
+  };
+
+  const handleSend = async () => {
+    const resolvedRecipients = recipients.length > 0 ? recipients : parseRecipientsFromInput().valid;
+    if (resolvedRecipients.length === 0) {
+      toast.error("Add at least one valid recipient");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          subject: form.subject,
+          sender: form.sender,
+          bodyHtml: form.body,
+          recipients: resolvedRecipients,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { message?: string };
+        throw new Error(payload.message || "Failed to create campaign");
+      }
+
+      toast.success("Campaign created");
+      navigate("/campaigns");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to create campaign";
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -62,6 +151,25 @@ export default function CampaignBuilder() {
     };
 
     void loadTemplates();
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch("/api/auth/settings");
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as { mail?: { defaultSender?: string } };
+        if (payload.mail?.defaultSender) {
+          setForm((current) => ({ ...current, sender: payload.mail?.defaultSender || current.sender }));
+        }
+      } catch {
+        return;
+      }
+    };
+
+    void loadSettings();
   }, []);
 
   return (
@@ -122,9 +230,10 @@ export default function CampaignBuilder() {
                   <Button variant="secondary" size="sm" onClick={parseManual} className="rounded-xl">Parse & Validate</Button>
                 </div>
               ) : (
-                <div className="border-2 border-dashed rounded-2xl p-10 text-center text-muted-foreground">
-                  <p className="text-sm">Drag & drop a CSV file here, or click to browse</p>
-                  <p className="text-xs mt-2">Columns: email (required), name (optional)</p>
+                <div className="border rounded-2xl p-6 space-y-3">
+                  <Label>Upload CSV File</Label>
+                  <Input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} className="rounded-xl" />
+                  <p className="text-xs text-muted-foreground">Columns: email (required), name (optional)</p>
                 </div>
               )}
               {recipients.length > 0 && (
@@ -197,7 +306,7 @@ export default function CampaignBuilder() {
             Next <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         ) : (
-          <Button onClick={handleSend} className="rounded-xl bg-success hover:bg-success/90 text-success-foreground">
+          <Button onClick={() => void handleSend()} disabled={isSubmitting} className="rounded-xl bg-success hover:bg-success/90 text-success-foreground">
             <Send className="h-4 w-4 mr-2" /> Send Campaign
           </Button>
         )}

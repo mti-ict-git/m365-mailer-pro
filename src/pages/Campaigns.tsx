@@ -1,22 +1,54 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
-import { mockCampaigns, CampaignStatus } from "@/lib/mock-data";
+import { CampaignStatus, CampaignSummary } from "@/lib/api-types";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const statusFilters: (CampaignStatus | 'all')[] = ['all', 'draft', 'scheduled', 'sending', 'completed', 'failed'];
 
 export default function Campaigns() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<CampaignStatus | 'all'>('all');
+  const [filter, setFilter] = useState<CampaignStatus | "all">("all");
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = mockCampaigns.filter(c => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.subject.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || c.status === filter;
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCampaigns = async () => {
+      try {
+        const response = await fetch("/api/campaigns");
+        if (!response.ok) {
+          throw new Error("Failed to load campaigns");
+        }
+        const payload = (await response.json()) as { campaigns?: CampaignSummary[] };
+        if (mounted) {
+          setCampaigns(payload.campaigns || []);
+        }
+      } catch {
+        toast.error("Unable to load campaigns");
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadCampaigns();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = campaigns.filter((campaign) => {
+    const matchSearch = campaign.name.toLowerCase().includes(search.toLowerCase())
+      || campaign.subject.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === "all" || campaign.status === filter;
     return matchSearch && matchFilter;
   });
 
@@ -38,9 +70,9 @@ export default function Campaigns() {
           <Input placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {statusFilters.map(s => (
-            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${filter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-              {s}
+          {statusFilters.map((status) => (
+            <button key={status} onClick={() => setFilter(status)} className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${filter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+              {status}
             </button>
           ))}
         </div>
@@ -60,17 +92,19 @@ export default function Campaigns() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map(c => {
-                const progress = c.totalRecipients > 0 ? Math.round(((c.sent + c.failed) / c.totalRecipients) * 100) : 0;
+              {filtered.map((campaign) => {
+                const progress = campaign.totalRecipients > 0
+                  ? Math.round(((campaign.sent + campaign.failed) / campaign.totalRecipients) * 100)
+                  : 0;
                 return (
-                  <tr key={c.id} onClick={() => navigate(`/campaigns/${c.id}`)} className="hover:bg-muted/20 cursor-pointer transition-colors">
+                  <tr key={campaign.id} onClick={() => navigate(`/campaigns/${campaign.id}`)} className="hover:bg-muted/20 cursor-pointer transition-colors">
                     <td className="px-5 py-3.5">
-                      <p className="font-medium text-card-foreground">{c.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{c.subject}</p>
+                      <p className="font-medium text-card-foreground">{campaign.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{campaign.subject}</p>
                     </td>
-                    <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{c.sender}</td>
-                    <td className="px-5 py-3.5 text-card-foreground">{c.totalRecipients.toLocaleString()}</td>
+                    <td className="px-5 py-3.5"><StatusBadge status={campaign.status} /></td>
+                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{campaign.sender}</td>
+                    <td className="px-5 py-3.5 text-card-foreground">{campaign.totalRecipients.toLocaleString()}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -79,11 +113,11 @@ export default function Campaigns() {
                         <span className="text-xs text-muted-foreground">{progress}%</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{c.createdAt}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{new Date(campaign.createdAt).toLocaleDateString()}</td>
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
                     <Mail className="h-8 w-8 mx-auto mb-2 opacity-40" />

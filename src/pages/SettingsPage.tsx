@@ -13,6 +13,12 @@ interface BackendSettings {
   mail?: {
     defaultSender?: string;
     recipientWarningThreshold?: number;
+    microsoftGraph?: {
+      tenantId?: string;
+      clientId?: string;
+      scope?: string;
+      hasClientSecret?: boolean;
+    };
   };
 }
 
@@ -21,10 +27,74 @@ export default function SettingsPage() {
     tenantId: "", clientId: "", defaultSender: "", batchSize: "50", batchDelay: "2", recipientWarning: "100",
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [testRecipient, setTestRecipient] = useState("");
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   const update = (key: string, val: string) => setConfig(c => ({ ...c, [key]: val }));
 
-  const handleSave = () => toast.success("Settings saved (demo mode)");
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/auth/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          application: {
+            defaultBatchSize: Number.parseInt(config.batchSize, 10),
+            defaultBatchDelaySeconds: Number.parseInt(config.batchDelay, 10),
+          },
+          mail: {
+            defaultSender: config.defaultSender,
+            recipientWarningThreshold: Number.parseInt(config.recipientWarning, 10),
+            microsoftGraph: {
+              tenantId: config.tenantId,
+              clientId: config.clientId,
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
+
+      toast.success("Settings saved");
+    } catch {
+      toast.error("Unable to save settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    try {
+      const response = await fetch("/api/auth/settings/test-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: testRecipient,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { message?: string };
+        throw new Error(payload.message || "Failed to send test email");
+      }
+
+      toast.success("Test email sent");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to send test email";
+      toast.error(message);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -43,6 +113,8 @@ export default function SettingsPage() {
 
         setConfig((previous) => ({
           ...previous,
+          tenantId: settings.mail?.microsoftGraph?.tenantId || previous.tenantId,
+          clientId: settings.mail?.microsoftGraph?.clientId || previous.clientId,
           defaultSender: settings.mail?.defaultSender || previous.defaultSender,
           batchSize: String(settings.application?.defaultBatchSize ?? previous.batchSize),
           batchDelay: String(settings.application?.defaultBatchDelaySeconds ?? previous.batchDelay),
@@ -86,6 +158,25 @@ export default function SettingsPage() {
             <Label>Default Sender</Label>
             <Input value={config.defaultSender} onChange={e => update('defaultSender', e.target.value)} placeholder="noreply@mti.com" className="rounded-xl" />
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+            <div className="space-y-2">
+              <Label>Test Recipient</Label>
+              <Input
+                value={testRecipient}
+                onChange={(event) => setTestRecipient(event.target.value)}
+                placeholder="you@company.com"
+                className="rounded-xl"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => void handleSendTestEmail()}
+              disabled={isLoading || isSaving || isSendingTest || !testRecipient.trim()}
+              className="rounded-xl"
+            >
+              Send Test Email
+            </Button>
+          </div>
         </div>
       </motion.div>
 
@@ -110,7 +201,7 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      <Button onClick={handleSave} disabled={isLoading} className="rounded-xl">Save Settings</Button>
+      <Button onClick={() => void handleSave()} disabled={isLoading || isSaving} className="rounded-xl">Save Settings</Button>
     </div>
   );
 }

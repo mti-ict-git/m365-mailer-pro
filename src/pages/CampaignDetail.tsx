@@ -1,23 +1,82 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
-import { mockCampaigns, mockLogs } from "@/lib/mock-data";
+import { CampaignSummary, DeliveryLog } from "@/lib/api-types";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const campaign = mockCampaigns.find(c => c.id === id);
-  const logs = mockLogs.filter(l => l.campaignId === id);
+  const [campaign, setCampaign] = useState<CampaignSummary | null>(null);
+  const [logs, setLogs] = useState<DeliveryLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!campaign) {
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDetail = async () => {
+      if (!id) {
+        if (mounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/campaigns/${id}`);
+        if (response.status === 404) {
+          if (mounted) {
+            setCampaign(null);
+            setLogs([]);
+          }
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("Failed to load campaign");
+        }
+
+        const payload = (await response.json()) as {
+          campaign?: CampaignSummary;
+          logs?: DeliveryLog[];
+        };
+        if (!mounted) {
+          return;
+        }
+        setCampaign(payload.campaign || null);
+        setLogs(payload.logs || []);
+      } catch {
+        toast.error("Unable to load campaign detail");
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadDetail();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (!isLoading && !campaign) {
     return (
       <div className="text-center py-20">
         <Mail className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
         <p className="text-muted-foreground">Campaign not found</p>
         <Button variant="outline" className="mt-4 rounded-xl" onClick={() => navigate('/campaigns')}>Back</Button>
+      </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Loading campaign...</p>
       </div>
     );
   }
@@ -77,12 +136,12 @@ export default function CampaignDetail() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {logs.map(log => (
+              {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="px-5 py-3 text-card-foreground">{log.recipient}</td>
                   <td className="px-5 py-3"><StatusBadge status={log.status} type="log" /></td>
-                  <td className="px-5 py-3 text-muted-foreground text-xs">{log.timestamp}</td>
-                  <td className="px-5 py-3 text-destructive text-xs">{log.error || '—'}</td>
+                  <td className="px-5 py-3 text-muted-foreground text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-destructive text-xs">{log.error || "—"}</td>
                 </tr>
               ))}
               {logs.length === 0 && (

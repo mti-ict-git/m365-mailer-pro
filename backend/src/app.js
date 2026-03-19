@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { authRouter } from "./routes/auth.js";
+import { campaignRouter } from "./routes/campaigns.js";
+import { logRouter } from "./routes/logs.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 
 export const app = express();
@@ -23,6 +25,8 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/campaigns", campaignRouter);
+app.use("/api/logs", logRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
