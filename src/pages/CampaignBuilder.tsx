@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
+import { CampaignRecipient, CampaignSummary } from "@/lib/api-types";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
 
@@ -22,10 +23,38 @@ interface TemplatesResponse {
   templates: TemplateDefinition[];
 }
 
+interface CampaignAttachmentPayload {
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+  contentBytes: string;
+}
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const maxAttachmentBytes = 3 * 1024 * 1024;
+const maxAttachmentCount = 5;
+
+const toBase64FromFile = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const raw = typeof reader.result === "string" ? reader.result : "";
+    const separatorIndex = raw.indexOf(",");
+    if (separatorIndex === -1) {
+      reject(new Error(`Invalid file encoding: ${file.name}`));
+      return;
+    }
+    resolve(raw.slice(separatorIndex + 1));
+  };
+  reader.onerror = () => {
+    reject(new Error(`Unable to read attachment: ${file.name}`));
+  };
+  reader.readAsDataURL(file);
+});
 
 export default function CampaignBuilder() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const isEditMode = Boolean(id);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     name: "", subject: "", sender: "", recipientMethod: "manual" as "manual" | "csv",
@@ -33,7 +62,10 @@ export default function CampaignBuilder() {
   });
   const [recipients, setRecipients] = useState<{ email: string; name?: string }[]>([]);
   const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
+  const [attachments, setAttachments] = useState<CampaignAttachmentPayload[]>([]);
+  const [attachmentsDirty, setAttachmentsDirty] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingCampaign, setIsLoadingCampaign] = useState(false);
 
   const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) => setForm(f => ({ ...f, [key]: val }));
 
@@ -98,6 +130,45 @@ export default function CampaignBuilder() {
     reader.readAsText(file);
   };
 
+  const handleAttachmentUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length === 0) {
+      return;
+    }
+
+    if (attachments.length + files.length > maxAttachmentCount) {
+      toast.error(`Maximum ${maxAttachmentCount} attachments allowed`);
+      return;
+    }
+
+    try {
+      const uploaded = await Promise.all(files.map(async (file) => {
+        if (file.size > maxAttachmentBytes) {
+          throw new Error(`Attachment too large: ${file.name}`);
+        }
+        return {
+          name: file.name,
+          contentType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          contentBytes: await toBase64FromFile(file),
+        };
+      }));
+      setAttachments((current) => [...current, ...uploaded]);
+      setAttachmentsDirty(true);
+      toast.success(`${uploaded.length} attachment(s) added`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to upload attachment";
+      toast.error(message);
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const removeAttachment = (name: string) => {
+    setAttachments((current) => current.filter((attachment) => attachment.name !== name));
+    setAttachmentsDirty(true);
+  };
+
   const handleSend = async () => {
     const resolvedRecipients = recipients.length > 0 ? recipients : parseRecipientsFromInput().valid;
     if (resolvedRecipients.length === 0) {
@@ -107,18 +178,30 @@ export default function CampaignBuilder() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/campaigns", {
-        method: "POST",
+      const payload = {
+        name: form.name,
+        subject: form.subject,
+        sender: form.sender,
+        bodyHtml: form.body,
+        recipients: resolvedRecipients,
+      } as {
+        name: string;
+        subject: string;
+        sender: string;
+        bodyHtml: string;
+        recipients: { email: string; name?: string }[];
+        attachments?: CampaignAttachmentPayload[];
+      };
+      if (!isEditMode || attachmentsDirty) {
+        payload.attachments = attachments;
+      }
+
+      const response = await fetch(isEditMode && id ? `/api/campaigns/${id}` : "/api/campaigns", {
+        method: isEditMode ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: form.name,
-          subject: form.subject,
-          sender: form.sender,
-          bodyHtml: form.body,
-          recipients: resolvedRecipients,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -126,7 +209,7 @@ export default function CampaignBuilder() {
         throw new Error(payload.message || "Failed to create campaign");
       }
 
-      toast.success("Campaign created");
+      toast.success(isEditMode ? "Campaign updated" : "Campaign created");
       navigate("/campaigns");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unable to create campaign";
@@ -172,6 +255,69 @@ export default function CampaignBuilder() {
     void loadSettings();
   }, []);
 
+  useEffect(() => {
+    const loadCampaign = async () => {
+      if (!isEditMode || !id) {
+        return;
+      }
+
+      setIsLoadingCampaign(true);
+      try {
+        const response = await fetch(`/api/campaigns/${id}`);
+        if (response.status === 404) {
+          toast.error("Campaign not found");
+          navigate("/campaigns");
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("Failed to load campaign for editing");
+        }
+
+        const payload = (await response.json()) as {
+          campaign?: CampaignSummary;
+          recipients?: CampaignRecipient[];
+        };
+        if (!payload.campaign) {
+          throw new Error("Campaign data is unavailable");
+        }
+
+        setForm((current) => ({
+          ...current,
+          name: payload.campaign?.name || "",
+          subject: payload.campaign?.subject || "",
+          sender: payload.campaign?.sender || "",
+          body: "",
+        }));
+
+        setAttachments(
+          (payload.campaign.attachments || []).map((attachment) => ({
+            name: attachment.name,
+            contentType: attachment.contentType,
+            sizeBytes: attachment.sizeBytes,
+            contentBytes: attachment.contentBytes || "",
+          })),
+        );
+
+        const recipientRows = (payload.recipients || []).map((recipient) => ({
+          email: recipient.email,
+          name: recipient.name,
+        }));
+        setRecipients(recipientRows);
+        setForm((current) => ({
+          ...current,
+          manualEmails: recipientRows.map((recipient) => recipient.email).join("\n"),
+        }));
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unable to load campaign";
+        toast.error(message);
+      } finally {
+        setIsLoadingCampaign(false);
+      }
+    };
+
+    void loadCampaign();
+  }, [id, isEditMode, navigate]);
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')} className="gap-2">
@@ -179,8 +325,10 @@ export default function CampaignBuilder() {
       </Button>
 
       <div>
-        <h1 className="text-2xl font-bold text-foreground">New Campaign</h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and send a new email campaign</p>
+        <h1 className="text-2xl font-bold text-foreground">{isEditMode ? "Edit Campaign" : "New Campaign"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isEditMode ? "Update and reschedule your email campaign" : "Create and send a new email campaign"}
+        </p>
       </div>
 
       {/* Steps indicator */}
@@ -198,6 +346,11 @@ export default function CampaignBuilder() {
         ))}
       </div>
 
+      {isLoadingCampaign ? (
+        <div className="bg-card rounded-2xl shadow-card border p-10 text-center text-muted-foreground text-sm">
+          Loading campaign...
+        </div>
+      ) : (
       <AnimatePresence mode="wait">
         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-card rounded-2xl shadow-card border p-6 space-y-5">
           {step === 0 && (
@@ -277,6 +430,26 @@ export default function CampaignBuilder() {
                 </div>
               )}
               <RichEmailEditor value={form.body} onChange={(val) => update("body", val)} />
+              <div className="space-y-2">
+                <Label>Attachments</Label>
+                <Input type="file" multiple onChange={event => void handleAttachmentUpload(event)} className="rounded-xl" />
+                <p className="text-xs text-muted-foreground">Max 5 files, 3MB each</p>
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.name} className="flex items-center justify-between rounded-xl border px-3 py-2">
+                        <div>
+                          <p className="text-sm text-foreground">{attachment.name}</p>
+                          <p className="text-xs text-muted-foreground">{Math.ceil(attachment.sizeBytes / 1024)} KB</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => removeAttachment(attachment.name)} className="rounded-xl">
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -288,6 +461,7 @@ export default function CampaignBuilder() {
                 <div><p className="text-muted-foreground">Subject</p><p className="font-medium text-foreground">{form.subject || '—'}</p></div>
                 <div><p className="text-muted-foreground">Sender</p><p className="font-medium text-foreground">{form.sender || '—'}</p></div>
                 <div><p className="text-muted-foreground">Recipients</p><p className="font-medium text-foreground">{recipients.length}</p></div>
+                <div><p className="text-muted-foreground">Attachments</p><p className="font-medium text-foreground">{attachments.length}</p></div>
               </div>
               <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 text-sm text-warning">
                 ⚠️ You are about to send emails to {recipients.length} recipients. This action cannot be undone.
@@ -296,6 +470,7 @@ export default function CampaignBuilder() {
           )}
         </motion.div>
       </AnimatePresence>
+      )}
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => step > 0 ? setStep(step - 1) : navigate('/campaigns')} className="rounded-xl">
@@ -307,7 +482,7 @@ export default function CampaignBuilder() {
           </Button>
         ) : (
           <Button onClick={() => void handleSend()} disabled={isSubmitting} className="rounded-xl bg-success hover:bg-success/90 text-success-foreground">
-            <Send className="h-4 w-4 mr-2" /> Send Campaign
+            <Send className="h-4 w-4 mr-2" /> {isEditMode ? "Update Campaign" : "Send Campaign"}
           </Button>
         )}
       </div>

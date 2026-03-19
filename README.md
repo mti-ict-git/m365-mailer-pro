@@ -62,9 +62,20 @@ Response body:
 - `GET /api/campaigns`
 - `GET /api/campaigns/:id`
 - `POST /api/campaigns`
+- `POST /api/campaigns/:id/dispatch`
 - `GET /api/logs`
 
 `Dashboard`, `Campaigns`, `Campaign Detail`, `Logs`, and `New Campaign` pages now use live backend APIs and PostgreSQL data.
+
+Campaign create supports optional attachments:
+
+- `POST /api/campaigns`
+- Request body can include `attachments` array:
+  - `name` (string)
+  - `contentType` (string)
+  - `contentBytes` (base64 string)
+- Limits: max 5 files, max 3MB per file, max 10MB total.
+- Campaigns are dispatched asynchronously after creation; status transitions from `scheduled`/`sending` to `completed` or `failed`.
 
 ## Authentication Status Codes
 
@@ -106,6 +117,7 @@ Test email endpoint:
 - `POST /api/auth/settings/test-email`
 - Request body: `{ "to": "recipient@company.com" }`
 - Uses current saved Microsoft Graph settings and default sender.
+- Also supports optional `attachments` with same payload shape and limits as campaign create.
 
 ## Database Schema Source
 

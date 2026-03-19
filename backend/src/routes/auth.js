@@ -57,11 +57,13 @@ const parseTestEmailPayload = (payload) => {
   const to = typeof body.to === "string" ? body.to.trim() : "";
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
+  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
 
   return {
     to,
     subject,
     message,
+    attachments,
   };
 };
 
@@ -125,6 +127,7 @@ authRouter.post("/settings/test-email", asyncHandler(async (req, res) => {
     to: payload.to,
     subject: payload.subject,
     message: payload.message,
+    attachments: payload.attachments,
   });
   res.status(200).json({
     message: "Test email sent",

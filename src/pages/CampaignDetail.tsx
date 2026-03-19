@@ -14,6 +14,7 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState<CampaignSummary | null>(null);
   const [logs, setLogs] = useState<DeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDispatching, setIsDispatching] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -81,13 +82,39 @@ export default function CampaignDetail() {
     );
   }
 
+  const handleDispatchNow = async () => {
+    if (!id) {
+      return;
+    }
+    setIsDispatching(true);
+    try {
+      const response = await fetch(`/api/campaigns/${id}/dispatch`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to trigger dispatch");
+      }
+      toast.success("Dispatch started");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to dispatch campaign";
+      toast.error(message);
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
   const progress = campaign.totalRecipients > 0 ? Math.round(((campaign.sent + campaign.failed) / campaign.totalRecipients) * 100) : 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')} className="gap-2">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/campaigns')} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => void handleDispatchNow()} disabled={isDispatching}>
+          Dispatch Now
+        </Button>
+      </div>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl shadow-card border p-6 space-y-4">
         <div className="flex items-start justify-between flex-wrap gap-3">
@@ -119,6 +146,19 @@ export default function CampaignDetail() {
             </div>
           ))}
         </div>
+        {campaign.attachments && campaign.attachments.length > 0 && (
+          <div className="space-y-2 pt-2">
+            <p className="text-xs text-muted-foreground">Attachments</p>
+            <div className="space-y-2">
+              {campaign.attachments.map((attachment) => (
+                <div key={attachment.name} className="flex items-center justify-between rounded-xl border px-3 py-2">
+                  <span className="text-sm text-card-foreground">{attachment.name}</span>
+                  <span className="text-xs text-muted-foreground">{Math.ceil(attachment.sizeBytes / 1024)} KB</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-2xl shadow-card border overflow-hidden">

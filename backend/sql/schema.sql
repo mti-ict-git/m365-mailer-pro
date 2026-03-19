@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   subject VARCHAR(255) NOT NULL,
   sender VARCHAR(255) NOT NULL,
   body_html TEXT,
+  attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   status VARCHAR(30) NOT NULL DEFAULT 'draft',
   total_recipients INTEGER NOT NULL DEFAULT 0,
   sent_count INTEGER NOT NULL DEFAULT 0,
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
 );
 
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS body_html TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS recipients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

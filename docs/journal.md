@@ -80,3 +80,20 @@
 - Removed deprecated `src/lib/mock-data.ts` and replaced status color mapping with real component-local mapping.
 - Replaced placeholder `Index` page with real app redirect behavior.
 - Updated README with new campaign API documentation and live data usage.
+
+## 2026-03-19 22:40:51 WITA
+
+- Added campaign attachment support in backend create API and PostgreSQL schema (`attachments_json`).
+- Added attachment validation with limits: max 5 files, max 3MB per file, max 10MB total.
+- Extended test email service to optionally send attachments through Microsoft Graph.
+- Added campaign builder attachment upload UI and payload submission.
+- Added attachment display in campaign detail page.
+- Updated README with campaign/test-email attachment payload documentation.
+
+## 2026-03-19 22:49:48 WITA
+
+- Added asynchronous campaign dispatcher to send scheduled campaigns automatically after creation.
+- Added `POST /api/campaigns/:id/dispatch` endpoint for manual retry of pending campaigns.
+- Added Microsoft Graph shared mail utilities for token and mail sending.
+- Updated campaign delivery flow to mark recipients as `sent` or `failed` and finalize campaign status.
+- Verified pending campaign can be retried and transitions to completed with sent logs.
