@@ -21,6 +21,7 @@ const toAttachmentMeta = (attachment) => ({
   name: attachment.name,
   contentType: attachment.contentType,
   sizeBytes: attachment.sizeBytes,
+  contentBytes: attachment.contentBytes,
 });
 
 const sanitizeAttachmentRows = (value) => {

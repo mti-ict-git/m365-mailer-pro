@@ -121,3 +121,16 @@
 - Updated `docker-compose.yml` to remove bundled PostgreSQL service and use existing external PostgreSQL server.
 - Added `POSTGRES_URL` and `POSTGRES_DATABASE` environment-driven configuration for backend container.
 - Updated README Docker section to document external PostgreSQL usage with `host.docker.internal`.
+
+## 2026-03-19 23:13:56 WITA
+
+- Added `docker-compose.dev.yml` for frontend/backend live development with bind mounts.
+- Added Vite API proxy target override via `VITE_API_PROXY_TARGET` in `vite.config.ts`.
+- Updated README with rebuild workflow and hot-reload Docker development workflow.
+
+## 2026-03-19 23:18:01 WITA
+
+- Added configurable Docker host ports via `FRONTEND_PORT` and `BACKEND_PORT` in production compose.
+- Added configurable development ports via `FRONTEND_PORT` and `BACKEND_PORT` in dev compose.
+- Added configurable `CORS_ORIGIN` in compose files for custom frontend port usage.
+- Updated README with custom port examples for both production and development Docker workflows.

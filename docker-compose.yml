@@ -7,7 +7,7 @@ services:
     environment:
       NODE_ENV: production
       BACKEND_PORT: 3001
-      CORS_ORIGIN: http://localhost:8080
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://postgres:postgres@host.docker.internal:5432/emailBlasterDB}
       POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
       LDAP_URL: ""
@@ -20,7 +20,7 @@ services:
       MS_GRAPH_SCOPE: ${MS_GRAPH_SCOPE:-https://graph.microsoft.com/.default}
     command: sh -c "npm --prefix backend run db:init && npm --prefix backend run start"
     ports:
-      - "3001:3001"
+      - "${BACKEND_PORT:-3001}:3001"
 
   frontend:
     build:
@@ -30,4 +30,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:8080"
+      - "${FRONTEND_PORT:-8080}:8080"

@@ -1,0 +1,45 @@
+services:
+  backend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      BACKEND_PORT: ${BACKEND_PORT:-3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://postgres:postgres@host.docker.internal:5432/emailBlasterDB}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-emailBlasterDB}
+      LDAP_URL: ""
+      LDAP_BASE_DN: ""
+      BIND_DN: ""
+      BIND_PW: ""
+      MS_GRAPH_CLIENT_ID: ${MS_GRAPH_CLIENT_ID:-}
+      MS_GRAPH_TENANT_ID: ${MS_GRAPH_TENANT_ID:-}
+      MS_GRAPH_CLIENT_SECRET: ${MS_GRAPH_CLIENT_SECRET:-}
+      MS_GRAPH_SCOPE: ${MS_GRAPH_SCOPE:-https://graph.microsoft.com/.default}
+    command: sh -c "npm --prefix backend install && npm --prefix backend run db:init && npm --prefix backend run dev"
+    volumes:
+      - ./:/app
+      - backend_node_modules:/app/backend/node_modules
+    ports:
+      - "${BACKEND_PORT:-3001}:${BACKEND_PORT:-3001}"
+
+  frontend-dev:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_API_PROXY_TARGET: http://backend-dev:${BACKEND_PORT:-3001}
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port ${FRONTEND_PORT:-8080}"
+    volumes:
+      - ./:/app
+      - root_node_modules:/app/node_modules
+    depends_on:
+      - backend-dev
+    ports:
+      - "${FRONTEND_PORT:-8080}:${FRONTEND_PORT:-8080}"
+
+volumes:
+  root_node_modules:
+  backend_node_modules:

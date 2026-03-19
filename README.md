@@ -170,10 +170,19 @@ Run full stack with Docker Compose:
 docker compose up --build
 ```
 
+Custom host ports:
+
+```bash
+export FRONTEND_PORT=8090
+export BACKEND_PORT=3002
+export CORS_ORIGIN=http://localhost:8090
+docker compose up --build
+```
+
 Services:
 
-- Frontend: `http://localhost:8080`
-- Backend API: `http://localhost:3001`
+- Frontend: `http://localhost:${FRONTEND_PORT}` (default `8080`)
+- Backend API: `http://localhost:${BACKEND_PORT}` (default `3001`)
 
 Compose provisions:
 
@@ -188,3 +197,30 @@ If your PostgreSQL server is outside Docker, set:
 ```bash
 export POSTGRES_URL=postgresql://<user>:<password>@host.docker.internal:5432/<db_name>
 ```
+
+When you change frontend or backend code and want image-based production containers, rebuild:
+
+```bash
+docker compose up --build
+```
+
+For live development without rebuilding on every change:
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+
+Live development with custom ports:
+
+```bash
+export FRONTEND_PORT=8090
+export BACKEND_PORT=3002
+export CORS_ORIGIN=http://localhost:8090
+docker compose -f docker-compose.dev.yml up
+```
+
+Development services:
+
+- frontend-dev with Vite hot reload
+- backend-dev with Node watch mode
+- both mounted from local source with live sync
