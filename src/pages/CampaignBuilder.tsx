@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
+import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
