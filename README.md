@@ -54,6 +54,12 @@ Response body:
 - `GET /api/auth/settings`
 - `GET /api/auth/templates`
 
+## Authentication Status Codes
+
+- `200` login success.
+- `401` invalid username/password.
+- `503` LDAP service unavailable or backend LDAP configuration is incomplete.
+
 ## Environment Variables
 
 Set LDAP and service configuration in `.env`:
@@ -64,6 +70,13 @@ Set LDAP and service configuration in `.env`:
 - `BIND_PW` or `LDAP_PASSWORD`
 - `BACKEND_PORT` (optional, default `3001`)
 - `CORS_ORIGIN` (optional, default `http://localhost:8080`)
+- `POSTGRES_URL`
+- `POSTGRES_DATABASE`
+
+## Database Schema Source
+
+- SQL source of truth: `backend/sql/schema.sql`
+- Current tables: `app_users`, `login_audits`, `campaigns`, `recipients`
 
 ## Run Locally
 
@@ -72,6 +85,12 @@ Install dependencies:
 ```bash
 npm install
 npm --prefix backend install
+```
+
+Create database and apply schema:
+
+```bash
+npm run db:init
 ```
 
 Run frontend:
@@ -84,6 +103,12 @@ Run backend:
 
 ```bash
 npm run dev:backend
+```
+
+Run frontend and backend together:
+
+```bash
+npm run dev:full
 ```
 
 Vite proxies `/api` calls to `http://localhost:3001` in development.

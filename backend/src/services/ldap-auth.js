@@ -92,6 +92,16 @@ export const authenticateWithLdap = async ({ username, password }) => {
     if (message.toLowerCase().includes("invalid credentials")) {
       throw withStatusCode("Invalid credentials", 401);
     }
+
+    if (
+      message.includes("ECONNREFUSED")
+      || message.includes("ETIMEDOUT")
+      || message.includes("connect timeout")
+      || message.includes("socket")
+    ) {
+      throw withStatusCode("LDAP service unavailable", 503);
+    }
+
     throw withStatusCode("Authentication failed", 401);
   } finally {
     await serviceClient.unbind().catch(() => undefined);

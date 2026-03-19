@@ -12,3 +12,9 @@
 - Updated settings page to load backend settings data.
 - Added Vite dev proxy for `/api` to backend service.
 - Added root scripts for backend run commands.
+
+## 2026-03-19 20:49:15 WITA
+
+- Added `npm run dev:full` to run frontend and backend together.
+- Added `concurrently` as a dev dependency for parallel local development.
+- Updated README with the new combined development command.

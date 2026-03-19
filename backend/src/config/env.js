@@ -24,5 +24,8 @@ export const env = {
   ldapBindDn: read("BIND_DN", read("LDAP_USERNAME")),
   ldapBindPassword: read("BIND_PW", read("LDAP_PASSWORD")),
   ldapTlsRejectUnauthorized: read("LDAP_TLS_REJECT_UNAUTHORIZED", "true") === "true",
+  postgresUrl: read("POSTGRES_URL"),
+  postgresDatabase: read("POSTGRES_DATABASE", "emailBlasterDB"),
   dataPath: path.join(rootPath, "data"),
+  sqlPath: path.join(rootPath, "backend/sql"),
 };
