@@ -194,11 +194,7 @@ Compose provisions:
 - external PostgreSQL connection via `POSTGRES_URL`
 
 Backend container starts server directly without running schema initialization on startup.
-To run schema initialization on startup, set this in `.env`:
-
-```bash
-RUN_DB_INIT_ON_STARTUP=true
-```
+Compose forces `RUN_DB_INIT_ON_STARTUP=false` to prevent restart loops when remote database access is restricted.
 
 Or run one-time initialization manually:
 

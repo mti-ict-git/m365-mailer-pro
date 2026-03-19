@@ -171,3 +171,9 @@
 - Updated backend server startup to run database initialization only when `RUN_DB_INIT_ON_STARTUP=true`.
 - Simplified compose backend commands to always run backend start/dev without inline init shell logic.
 - Added README guidance for one-time manual schema initialization using `npm --prefix backend run db:init`.
+
+## 2026-03-20 04:12:53 WITA
+
+- Pinned `RUN_DB_INIT_ON_STARTUP=false` in production and development compose backend services.
+- Prevented `.env` overrides from re-enabling startup DB initialization and causing container restart loops.
+- Updated README to reflect compose-enforced startup behavior and manual one-time DB init flow.
