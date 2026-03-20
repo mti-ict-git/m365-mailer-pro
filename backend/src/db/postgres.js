@@ -73,7 +73,7 @@ const buildPoolOptions = (connectionString) => ({
     ? {
         rejectUnauthorized: env.postgresSslRejectUnauthorized,
       }
-    : undefined,
+    : false,
 });
 
 export const createAdminPool = () =>
