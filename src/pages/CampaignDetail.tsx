@@ -7,6 +7,7 @@ import { CampaignSummary, DeliveryLog } from "@/lib/api-types";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 
 export default function CampaignDetail() {
   const { id } = useParams();
@@ -29,7 +30,7 @@ export default function CampaignDetail() {
       }
 
       try {
-        const response = await fetch(`/api/campaigns/${id}`);
+        const response = await apiFetch(`/api/campaigns/${id}`);
         if (response.status === 404) {
           if (mounted) {
             setCampaign(null);
@@ -89,7 +90,7 @@ export default function CampaignDetail() {
     }
     setIsDispatching(true);
     try {
-      const response = await fetch(`/api/campaigns/${id}/dispatch`, {
+      const response = await apiFetch(`/api/campaigns/${id}/dispatch`, {
         method: "POST",
       });
       if (!response.ok) {
@@ -110,7 +111,7 @@ export default function CampaignDetail() {
     }
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/campaigns/${id}`, {
+      const response = await apiFetch(`/api/campaigns/${id}`, {
         method: "DELETE",
       });
       if (response.status === 404) {

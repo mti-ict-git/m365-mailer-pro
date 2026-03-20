@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
 import { CampaignRecipient, CampaignSummary } from "@/lib/api-types";
+import { apiFetch } from "@/lib/api-client";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
 
@@ -196,7 +197,7 @@ export default function CampaignBuilder() {
         payload.attachments = attachments;
       }
 
-      const response = await fetch(isEditMode && id ? `/api/campaigns/${id}` : "/api/campaigns", {
+      const response = await apiFetch(isEditMode && id ? `/api/campaigns/${id}` : "/api/campaigns", {
         method: isEditMode ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -263,7 +264,7 @@ export default function CampaignBuilder() {
 
       setIsLoadingCampaign(true);
       try {
-        const response = await fetch(`/api/campaigns/${id}`);
+        const response = await apiFetch(`/api/campaigns/${id}`);
         if (response.status === 404) {
           toast.error("Campaign not found");
           navigate("/campaigns");

@@ -127,27 +127,29 @@ const sanitizeRecipients = (recipients) => {
   return unique;
 };
 
-export const listCampaigns = async () => {
+export const listCampaigns = async (userId) => {
   const result = await query(
     `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
      FROM campaigns
+     WHERE created_by = $1
      ORDER BY created_at DESC`,
+    [userId],
   );
   return result.rows.map(mapCampaign);
 };
 
-export const getCampaignById = async (campaignId) => {
+export const getCampaignById = async (campaignId, userId) => {
   const result = await query(
     `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
      FROM campaigns
-     WHERE id = $1
+     WHERE id = $1 AND created_by = $2
      LIMIT 1`,
-    [campaignId],
+    [campaignId, userId],
   );
   return result.rows[0] ? mapCampaign(result.rows[0]) : null;
 };
 
-export const listCampaignLogs = async (campaignId) => {
+export const listCampaignLogs = async (campaignId, userId) => {
   const result = await query(
     `SELECT
        recipients.id::text AS id,
@@ -159,21 +161,22 @@ export const listCampaignLogs = async (campaignId) => {
        recipients.error_message AS error
      FROM recipients
      INNER JOIN campaigns ON campaigns.id = recipients.campaign_id
-     WHERE recipients.campaign_id = $1
+     WHERE recipients.campaign_id = $1 AND campaigns.created_by = $2
      ORDER BY recipients.created_at DESC`,
-    [campaignId],
+    [campaignId, userId],
   );
 
   return result.rows.map(mapLog);
 };
 
-export const listCampaignRecipients = async (campaignId) => {
+export const listCampaignRecipients = async (campaignId, userId) => {
   const result = await query(
-    `SELECT email, recipient_name
-     FROM recipients
-     WHERE campaign_id = $1
-     ORDER BY created_at ASC`,
-    [campaignId],
+    `SELECT r.email, r.recipient_name
+     FROM recipients r
+     INNER JOIN campaigns c ON c.id = r.campaign_id
+     WHERE r.campaign_id = $1 AND c.created_by = $2
+     ORDER BY r.created_at ASC`,
+    [campaignId, userId],
   );
 
   return result.rows.map(mapRecipient);
@@ -197,7 +200,7 @@ export const listLogs = async () => {
   return result.rows.map(mapLog);
 };
 
-export const createCampaign = async (payload) => {
+export const createCampaign = async (payload, userId) => {
   const name = typeof payload.name === "string" ? payload.name.trim() : "";
   const subject = typeof payload.subject === "string" ? payload.subject.trim() : "";
   const sender = typeof payload.sender === "string" ? payload.sender.trim().toLowerCase() : "";
@@ -221,11 +224,11 @@ export const createCampaign = async (payload) => {
   const createdCampaign = await withTransaction(async (runner) => {
     const campaignResult = await runner(
       `INSERT INTO campaigns
-        (name, subject, sender, body_html, attachments_json, status, total_recipients, sent_count, failed_count, scheduled_at, created_at, updated_at)
+        (name, subject, sender, body_html, attachments_json, status, total_recipients, sent_count, failed_count, scheduled_at, created_by, created_at, updated_at)
        VALUES
-        ($1, $2, $3, $4, $5::jsonb, 'scheduled', $6, 0, 0, NOW(), NOW(), NOW())
+        ($1, $2, $3, $4, $5::jsonb, 'scheduled', $6, 0, 0, NOW(), $7, NOW(), NOW())
        RETURNING id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json`,
-      [name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length],
+      [name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length, userId],
     );
 
     const campaign = campaignResult.rows[0];
@@ -243,13 +246,13 @@ export const createCampaign = async (payload) => {
   return mapCampaign(createdCampaign);
 };
 
-export const updateCampaign = async (campaignId, payload) => {
+export const updateCampaign = async (campaignId, payload, userId) => {
   const currentResult = await query(
     `SELECT id, name, subject, sender, body_html, attachments_json
      FROM campaigns
-     WHERE id = $1
+     WHERE id = $1 AND created_by = $2
      LIMIT 1`,
-    [campaignId],
+    [campaignId, userId],
   );
   if (!currentResult.rows[0]) {
     return null;
@@ -294,9 +297,9 @@ export const updateCampaign = async (campaignId, payload) => {
            scheduled_at = NOW(),
            completed_at = NULL,
            updated_at = NOW()
-       WHERE id = $1
+       WHERE id = $1 AND created_by = $8
        RETURNING id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json`,
-      [campaignId, name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length],
+      [campaignId, name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length, userId],
     );
 
     await runner("DELETE FROM recipients WHERE campaign_id = $1", [campaignId]);
@@ -314,11 +317,11 @@ export const updateCampaign = async (campaignId, payload) => {
   return mapCampaign(updatedCampaign);
 };
 
-export const deleteCampaign = async (campaignId) => {
+export const deleteCampaign = async (campaignId, userId) => {
   const result = await query(
     `DELETE FROM campaigns
-     WHERE id = $1`,
-    [campaignId],
+     WHERE id = $1 AND created_by = $2`,
+    [campaignId, userId],
   );
   return result.rowCount > 0;
 };

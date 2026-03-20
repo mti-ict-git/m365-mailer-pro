@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CampaignStatus, CampaignSummary } from "@/lib/api-types";
+import { apiFetch, apiGet } from "@/lib/api-client";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -19,7 +20,7 @@ export default function Campaigns() {
 
   const handleDeleteCampaign = async (campaignId: string) => {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}`, {
+      const response = await apiFetch(`/api/campaigns/${campaignId}`, {
         method: "DELETE",
       });
       if (response.status === 404) {
@@ -43,7 +44,7 @@ export default function Campaigns() {
 
     const loadCampaigns = async () => {
       try {
-        const response = await fetch("/api/campaigns");
+        const response = await apiFetch("/api/campaigns");
         if (!response.ok) {
           throw new Error("Failed to load campaigns");
         }
