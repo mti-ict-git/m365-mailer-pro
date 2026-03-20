@@ -4,6 +4,9 @@ import { validateLoginPayload } from "../middleware/validate-login.js";
 import { loadAppSettings, loadAppSettingsInternal, loadTemplates, saveAppSettings } from "../services/config-store.js";
 import { writeLoginAudit } from "../services/login-audit.js";
 import { sendMicrosoftGraphTestEmail } from "../services/test-email.js";
+import { findOrCreateUser, listAllUsers, updateUserRole, deleteUser } from "../services/user-service.js";
+import { userContextMiddleware } from "../middleware/user-context.js";
+import { requireAdmin, requireManagerOrAdmin } from "../middleware/role-guard.js";
 
 export const authRouter = Router();
 
@@ -72,7 +75,11 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
   const sourceIp = req.ip || req.socket.remoteAddress || "";
 
   try {
-    const user = await authenticateWithLdap({ username, password, domain });
+    const ldapUser = await authenticateWithLdap({ username, password, domain });
+
+    // Create or find user in database to get their role
+    const dbUser = await findOrCreateUser(ldapUser.username);
+
     await writeLoginAudit({
       username,
       domain,
@@ -83,13 +90,14 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
 
     res.status(200).json({
       user: {
-        username: user.username,
-        displayName: user.displayName,
-        email: user.email,
+        username: ldapUser.username,
+        displayName: ldapUser.displayName,
+        email: ldapUser.email,
         domain,
-        department: user.department,
-        title: user.title,
-        distinguishedName: user.distinguishedName,
+        department: ldapUser.department,
+        title: ldapUser.title,
+        distinguishedName: ldapUser.distinguishedName,
+        role: dbUser.role,
       },
     });
   } catch (error) {
@@ -108,18 +116,18 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
   }
 }));
 
-authRouter.get("/settings", asyncHandler(async (req, res) => {
+authRouter.get("/settings", userContextMiddleware, requireManagerOrAdmin, asyncHandler(async (req, res) => {
   const settings = await loadAppSettings();
   res.status(200).json(settings);
 }));
 
-authRouter.post("/settings", asyncHandler(async (req, res) => {
+authRouter.post("/settings", userContextMiddleware, requireManagerOrAdmin, asyncHandler(async (req, res) => {
   const payload = parseSettingsPayload(req.body);
   const settings = await saveAppSettings(payload);
   res.status(200).json(settings);
 }));
 
-authRouter.post("/settings/test-email", asyncHandler(async (req, res) => {
+authRouter.post("/settings/test-email", userContextMiddleware, requireManagerOrAdmin, asyncHandler(async (req, res) => {
   const payload = parseTestEmailPayload(req.body);
   const settings = await loadAppSettingsInternal();
   const result = await sendMicrosoftGraphTestEmail({
@@ -140,4 +148,43 @@ authRouter.post("/settings/test-email", asyncHandler(async (req, res) => {
 authRouter.get("/templates", asyncHandler(async (req, res) => {
   const templates = await loadTemplates();
   res.status(200).json(templates);
+}));
+
+// User management endpoints (admin only)
+authRouter.get("/users", userContextMiddleware, requireAdmin, asyncHandler(async (req, res) => {
+  const users = await listAllUsers();
+  res.status(200).json({ users });
+}));
+
+authRouter.put("/users/:id/role", userContextMiddleware, requireAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  // Prevent admin from changing their own role
+  if (id === req.userContext.userId) {
+    return res.status(400).json({ message: "Cannot change your own role" });
+  }
+
+  const user = await updateUserRole(id, role);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.status(200).json({ user });
+}));
+
+authRouter.delete("/users/:id", userContextMiddleware, requireAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Prevent admin from deleting themselves
+  if (id === req.userContext.userId) {
+    return res.status(400).json({ message: "Cannot delete your own account" });
+  }
+
+  const deleted = await deleteUser(id);
+  if (!deleted) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.status(204).send();
 }));

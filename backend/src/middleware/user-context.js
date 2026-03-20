@@ -16,6 +16,7 @@ export const userContextMiddleware = async (req, res, next) => {
     req.userContext = {
       userId: user.id,
       username: user.username,
+      role: user.role,
     };
     return next();
   } catch (error) {

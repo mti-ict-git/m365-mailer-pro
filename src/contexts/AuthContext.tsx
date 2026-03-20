@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
+export type UserRole = "admin" | "manager" | "user";
+
 interface User {
   username: string;
   displayName: string;
   email: string;
   domain: string;
+  role: UserRole;
 }
 
 interface AuthContextType {
@@ -14,6 +17,8 @@ interface AuthContextType {
   login: (username: string, password: string, domain: string) => Promise<void>;
   logout: () => void;
   error: string | null;
+  canAccessSettings: boolean;
+  canManageUsers: boolean;
 }
 
 interface LoginResponse {
@@ -85,8 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const canAccessSettings = user?.role === "admin" || user?.role === "manager";
+  const canManageUsers = user?.role === "admin";
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, error }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, error, canAccessSettings, canManageUsers }}>
       {children}
     </AuthContext.Provider>
   );

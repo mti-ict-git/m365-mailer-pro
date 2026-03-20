@@ -127,7 +127,18 @@ const sanitizeRecipients = (recipients) => {
   return unique;
 };
 
-export const listCampaigns = async (userId) => {
+const canAccessAllCampaigns = (role) => role === "admin" || role === "manager";
+
+export const listCampaigns = async (userId, role) => {
+  if (canAccessAllCampaigns(role)) {
+    const result = await query(
+      `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
+       FROM campaigns
+       ORDER BY created_at DESC`,
+    );
+    return result.rows.map(mapCampaign);
+  }
+
   const result = await query(
     `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
      FROM campaigns
@@ -138,7 +149,18 @@ export const listCampaigns = async (userId) => {
   return result.rows.map(mapCampaign);
 };
 
-export const getCampaignById = async (campaignId, userId) => {
+export const getCampaignById = async (campaignId, userId, role) => {
+  if (canAccessAllCampaigns(role)) {
+    const result = await query(
+      `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
+       FROM campaigns
+       WHERE id = $1
+       LIMIT 1`,
+      [campaignId],
+    );
+    return result.rows[0] ? mapCampaign(result.rows[0]) : null;
+  }
+
   const result = await query(
     `SELECT id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json
      FROM campaigns
@@ -149,7 +171,26 @@ export const getCampaignById = async (campaignId, userId) => {
   return result.rows[0] ? mapCampaign(result.rows[0]) : null;
 };
 
-export const listCampaignLogs = async (campaignId, userId) => {
+export const listCampaignLogs = async (campaignId, userId, role) => {
+  if (canAccessAllCampaigns(role)) {
+    const result = await query(
+      `SELECT
+         recipients.id::text AS id,
+         recipients.campaign_id::text AS campaign_id,
+         campaigns.name AS campaign_name,
+         recipients.email AS recipient,
+         recipients.status AS status,
+         recipients.created_at AS timestamp,
+         recipients.error_message AS error
+       FROM recipients
+       INNER JOIN campaigns ON campaigns.id = recipients.campaign_id
+       WHERE recipients.campaign_id = $1
+       ORDER BY recipients.created_at DESC`,
+      [campaignId],
+    );
+    return result.rows.map(mapLog);
+  }
+
   const result = await query(
     `SELECT
        recipients.id::text AS id,
@@ -169,7 +210,18 @@ export const listCampaignLogs = async (campaignId, userId) => {
   return result.rows.map(mapLog);
 };
 
-export const listCampaignRecipients = async (campaignId, userId) => {
+export const listCampaignRecipients = async (campaignId, userId, role) => {
+  if (canAccessAllCampaigns(role)) {
+    const result = await query(
+      `SELECT r.email, r.recipient_name
+       FROM recipients r
+       WHERE r.campaign_id = $1
+       ORDER BY r.created_at ASC`,
+      [campaignId],
+    );
+    return result.rows.map(mapRecipient);
+  }
+
   const result = await query(
     `SELECT r.email, r.recipient_name
      FROM recipients r
@@ -246,14 +298,13 @@ export const createCampaign = async (payload, userId) => {
   return mapCampaign(createdCampaign);
 };
 
-export const updateCampaign = async (campaignId, payload, userId) => {
-  const currentResult = await query(
-    `SELECT id, name, subject, sender, body_html, attachments_json
-     FROM campaigns
-     WHERE id = $1 AND created_by = $2
-     LIMIT 1`,
-    [campaignId, userId],
-  );
+export const updateCampaign = async (campaignId, payload, userId, role) => {
+  const selectQuery = canAccessAllCampaigns(role)
+    ? `SELECT id, name, subject, sender, body_html, attachments_json FROM campaigns WHERE id = $1 LIMIT 1`
+    : `SELECT id, name, subject, sender, body_html, attachments_json FROM campaigns WHERE id = $1 AND created_by = $2 LIMIT 1`;
+  const selectParams = canAccessAllCampaigns(role) ? [campaignId] : [campaignId, userId];
+
+  const currentResult = await query(selectQuery, selectParams);
   if (!currentResult.rows[0]) {
     return null;
   }
@@ -283,24 +334,24 @@ export const updateCampaign = async (campaignId, payload, userId) => {
   }
 
   const updatedCampaign = await withTransaction(async (runner) => {
-    const campaignResult = await runner(
-      `UPDATE campaigns
-       SET name = $2,
-           subject = $3,
-           sender = $4,
-           body_html = $5,
-           attachments_json = $6::jsonb,
-           status = 'scheduled',
-           total_recipients = $7,
-           sent_count = 0,
-           failed_count = 0,
-           scheduled_at = NOW(),
-           completed_at = NULL,
-           updated_at = NOW()
-       WHERE id = $1 AND created_by = $8
-       RETURNING id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json`,
-      [campaignId, name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length, userId],
-    );
+    const updateQuery = canAccessAllCampaigns(role)
+      ? `UPDATE campaigns
+         SET name = $2, subject = $3, sender = $4, body_html = $5, attachments_json = $6::jsonb,
+             status = 'scheduled', total_recipients = $7, sent_count = 0, failed_count = 0,
+             scheduled_at = NOW(), completed_at = NULL, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json`
+      : `UPDATE campaigns
+         SET name = $2, subject = $3, sender = $4, body_html = $5, attachments_json = $6::jsonb,
+             status = 'scheduled', total_recipients = $7, sent_count = 0, failed_count = 0,
+             scheduled_at = NOW(), completed_at = NULL, updated_at = NOW()
+         WHERE id = $1 AND created_by = $8
+         RETURNING id, name, subject, sender, body_html, status, total_recipients, sent_count, failed_count, created_at, scheduled_at, completed_at, attachments_json`;
+    const updateParams = canAccessAllCampaigns(role)
+      ? [campaignId, name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length]
+      : [campaignId, name, subject, sender, bodyHtml, JSON.stringify(attachments), recipients.length, userId];
+
+    const campaignResult = await runner(updateQuery, updateParams);
 
     await runner("DELETE FROM recipients WHERE campaign_id = $1", [campaignId]);
     for (const recipient of recipients) {
@@ -317,10 +368,14 @@ export const updateCampaign = async (campaignId, payload, userId) => {
   return mapCampaign(updatedCampaign);
 };
 
-export const deleteCampaign = async (campaignId, userId) => {
+export const deleteCampaign = async (campaignId, userId, role) => {
+  if (canAccessAllCampaigns(role)) {
+    const result = await query(`DELETE FROM campaigns WHERE id = $1`, [campaignId]);
+    return result.rowCount > 0;
+  }
+
   const result = await query(
-    `DELETE FROM campaigns
-     WHERE id = $1 AND created_by = $2`,
+    `DELETE FROM campaigns WHERE id = $1 AND created_by = $2`,
     [campaignId, userId],
   );
   return result.rowCount > 0;

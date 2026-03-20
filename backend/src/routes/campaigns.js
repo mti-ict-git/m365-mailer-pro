@@ -50,19 +50,19 @@ const parseUpdatePayload = (payload) => {
 };
 
 campaignRouter.get("/", asyncHandler(async (req, res) => {
-  const campaigns = await listCampaigns(req.userContext.userId);
+  const campaigns = await listCampaigns(req.userContext.userId, req.userContext.role);
   res.status(200).json({ campaigns });
 }));
 
 campaignRouter.get("/:id", asyncHandler(async (req, res) => {
-  const campaign = await getCampaignById(req.params.id, req.userContext.userId);
+  const campaign = await getCampaignById(req.params.id, req.userContext.userId, req.userContext.role);
   if (!campaign) {
     res.status(404).json({ message: "Campaign not found" });
     return;
   }
 
-  const logs = await listCampaignLogs(req.params.id, req.userContext.userId);
-  const recipients = await listCampaignRecipients(req.params.id, req.userContext.userId);
+  const logs = await listCampaignLogs(req.params.id, req.userContext.userId, req.userContext.role);
+  const recipients = await listCampaignRecipients(req.params.id, req.userContext.userId, req.userContext.role);
   res.status(200).json({ campaign, logs, recipients });
 }));
 
@@ -74,7 +74,7 @@ campaignRouter.post("/", asyncHandler(async (req, res) => {
 }));
 
 campaignRouter.post("/:id/dispatch", asyncHandler(async (req, res) => {
-  const campaign = await getCampaignById(req.params.id, req.userContext.userId);
+  const campaign = await getCampaignById(req.params.id, req.userContext.userId, req.userContext.role);
   if (!campaign) {
     res.status(404).json({ message: "Campaign not found" });
     return;
@@ -85,7 +85,7 @@ campaignRouter.post("/:id/dispatch", asyncHandler(async (req, res) => {
 
 campaignRouter.put("/:id", asyncHandler(async (req, res) => {
   const payload = parseUpdatePayload(req.body);
-  const campaign = await updateCampaign(req.params.id, payload, req.userContext.userId);
+  const campaign = await updateCampaign(req.params.id, payload, req.userContext.userId, req.userContext.role);
   if (!campaign) {
     res.status(404).json({ message: "Campaign not found" });
     return;
@@ -95,7 +95,7 @@ campaignRouter.put("/:id", asyncHandler(async (req, res) => {
 }));
 
 campaignRouter.delete("/:id", asyncHandler(async (req, res) => {
-  const isDeleted = await deleteCampaign(req.params.id, req.userContext.userId);
+  const isDeleted = await deleteCampaign(req.params.id, req.userContext.userId, req.userContext.role);
   if (!isDeleted) {
     res.status(404).json({ message: "Campaign not found" });
     return;

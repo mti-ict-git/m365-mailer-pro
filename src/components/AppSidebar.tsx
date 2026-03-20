@@ -24,13 +24,17 @@ const items = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { user, logout } = useAuth();
+  const { user, logout, canAccessSettings } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
+
+  const visibleItems = items.filter(
+    (item) => item.url !== "/settings" || canAccessSettings,
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -50,7 +54,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
