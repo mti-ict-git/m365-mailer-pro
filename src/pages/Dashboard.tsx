@@ -3,6 +3,7 @@ import { Mail, Send, CheckCircle, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CampaignSummary } from "@/lib/api-types";
+import { apiFetch } from "@/lib/api-client";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ export default function Dashboard() {
 
     const loadCampaigns = async () => {
       try {
-        const response = await fetch("/api/campaigns");
+        const response = await apiFetch("/api/campaigns");
         if (!response.ok) {
           throw new Error("Failed to load dashboard data");
         }

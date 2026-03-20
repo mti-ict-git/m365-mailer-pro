@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DeliveryLog } from "@/lib/api-types";
+import { apiFetch } from "@/lib/api-client";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -18,7 +19,7 @@ export default function Logs() {
 
     const loadLogs = async () => {
       try {
-        const response = await fetch("/api/logs");
+        const response = await apiFetch("/api/logs");
         if (!response.ok) {
           throw new Error("Failed to load logs");
         }

@@ -183,3 +183,9 @@
 - Added recoverable PostgreSQL error handling in settings-store reads for pg_hba/auth/connectivity failures.
 - Changed `GET /api/auth/settings` behavior to fall back to `.env` and `data/settings.json` when DB is unreachable.
 - Updated README settings section to document fallback behavior.
+
+## 2026-03-20 10:58:21
+
+- Updated dashboard campaign loading to use authenticated API client headers.
+- Updated logs loading to use authenticated API client headers.
+- Fixed post-login requests to protected campaign/log endpoints that require `X-Username`.
