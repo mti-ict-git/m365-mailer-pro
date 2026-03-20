@@ -11,6 +11,7 @@ import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
 import { CampaignRecipient, CampaignSummary } from "@/lib/api-types";
 import { apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const steps = ["Basic Info", "Recipients", "Email Content", "Review & Send"];
 
@@ -56,6 +57,7 @@ const toBase64FromFile = (file: File) => new Promise<string>((resolve, reject) =
 export default function CampaignBuilder() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEditMode = Boolean(id);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
@@ -66,7 +68,7 @@ export default function CampaignBuilder() {
   const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
   const [attachments, setAttachments] = useState<CampaignAttachmentPayload[]>([]);
   const [attachmentsDirty, setAttachmentsDirty] = useState(false);
-  const [allowedSenders, setAllowedSenders] = useState<string[]>([]);
+  const [senderOptions, setSenderOptions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingCampaign, setIsLoadingCampaign] = useState(false);
 
@@ -240,29 +242,35 @@ export default function CampaignBuilder() {
   }, []);
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadSenderOptions = async () => {
       try {
-        const response = await fetch("/api/auth/settings");
+        const response = await apiFetch("/api/campaigns/sender-options");
         if (!response.ok) {
           return;
         }
-        const payload = (await response.json()) as { mail?: { defaultSender?: string; allowedSenders?: string[] } };
-        const senders = payload.mail?.allowedSenders || [];
-        setAllowedSenders(senders);
+        const payload = (await response.json()) as { senders?: string[]; defaultSender?: string };
+        const fromApi = Array.isArray(payload.senders) ? payload.senders : [];
+        const fromUser = user?.email ? [user.email.toLowerCase()] : [];
+        const mergedSenders = [...fromApi, ...fromUser]
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean)
+          .filter((value, index, all) => all.indexOf(value) === index);
 
-        // Set default sender: first allowed sender if available, otherwise use defaultSender setting
-        if (senders.length > 0) {
-          setForm((current) => ({ ...current, sender: current.sender || senders[0] }));
-        } else if (payload.mail?.defaultSender) {
-          setForm((current) => ({ ...current, sender: payload.mail?.defaultSender || current.sender }));
+        setSenderOptions(mergedSenders);
+
+        if (mergedSenders.length > 0) {
+          const initialSender = payload.defaultSender && mergedSenders.includes(payload.defaultSender)
+            ? payload.defaultSender
+            : mergedSenders[0];
+          setForm((current) => ({ ...current, sender: current.sender || initialSender }));
         }
       } catch {
         return;
       }
     };
 
-    void loadSettings();
-  }, []);
+    void loadSenderOptions();
+  }, [user?.email]);
 
   useEffect(() => {
     const loadCampaign = async () => {
@@ -302,6 +310,15 @@ export default function CampaignBuilder() {
           body: payload.campaign?.bodyHtml || current.body,
           manualEmails: recipientRows.map((recipient) => recipient.email).join("\n"),
         }));
+        if (payload.campaign?.sender) {
+          setSenderOptions((current) => {
+            const normalizedSender = payload.campaign?.sender.toLowerCase();
+            if (current.includes(normalizedSender)) {
+              return current;
+            }
+            return [...current, normalizedSender];
+          });
+        }
 
         setAttachments(
           (payload.campaign.attachments || []).map((attachment) => ({
@@ -371,14 +388,16 @@ export default function CampaignBuilder() {
               </div>
               <div className="space-y-2">
                 <Label>Sender Email</Label>
-                {allowedSenders.length > 0 ? (
+                {senderOptions.length > 0 ? (
                   <Select value={form.sender} onValueChange={(val) => update('sender', val)}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select a sender email" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allowedSenders.map((email) => (
-                        <SelectItem key={email} value={email}>{email}</SelectItem>
+                      {senderOptions.map((email) => (
+                        <SelectItem key={email} value={email}>
+                          {email}{user?.email?.toLowerCase() === email ? " (You)" : ""}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

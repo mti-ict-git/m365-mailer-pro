@@ -130,13 +130,21 @@ const sanitizeRecipients = (recipients) => {
 
 const canAccessAllCampaigns = (role) => role === "admin" || role === "manager";
 
-const validateAllowedSender = (sender, allowedSenders) => {
+const validateAllowedSender = (sender, allowedSenders, requesterEmail = "") => {
   // If no allowed senders configured, allow any sender (backward compatible)
   if (!Array.isArray(allowedSenders) || allowedSenders.length === 0) {
     return;
   }
 
   const normalizedSender = sender.toLowerCase().trim();
+  const normalizedRequester = typeof requesterEmail === "string"
+    ? requesterEmail.toLowerCase().trim()
+    : "";
+
+  if (normalizedRequester && normalizedSender === normalizedRequester) {
+    return;
+  }
+
   const normalizedAllowed = allowedSenders.map((s) => s.toLowerCase().trim());
 
   if (!normalizedAllowed.includes(normalizedSender)) {
@@ -267,7 +275,7 @@ export const listLogs = async () => {
   return result.rows.map(mapLog);
 };
 
-export const createCampaign = async (payload, userId) => {
+export const createCampaign = async (payload, userId, requesterEmail = "") => {
   const name = typeof payload.name === "string" ? payload.name.trim() : "";
   const subject = typeof payload.subject === "string" ? payload.subject.trim() : "";
   const sender = typeof payload.sender === "string" ? payload.sender.trim().toLowerCase() : "";
@@ -291,7 +299,7 @@ export const createCampaign = async (payload, userId) => {
   // Validate sender against allowed senders list
   const settings = await loadAppSettingsInternal();
   const allowedSenders = settings.mail?.allowedSenders || [];
-  validateAllowedSender(sender, allowedSenders);
+  validateAllowedSender(sender, allowedSenders, requesterEmail);
 
   const createdCampaign = await withTransaction(async (runner) => {
     const campaignResult = await runner(
@@ -318,7 +326,7 @@ export const createCampaign = async (payload, userId) => {
   return mapCampaign(createdCampaign);
 };
 
-export const updateCampaign = async (campaignId, payload, userId, role) => {
+export const updateCampaign = async (campaignId, payload, userId, role, requesterEmail = "") => {
   const selectQuery = canAccessAllCampaigns(role)
     ? `SELECT id, name, subject, sender, body_html, attachments_json FROM campaigns WHERE id = $1 LIMIT 1`
     : `SELECT id, name, subject, sender, body_html, attachments_json FROM campaigns WHERE id = $1 AND created_by = $2 LIMIT 1`;
@@ -356,7 +364,7 @@ export const updateCampaign = async (campaignId, payload, userId, role) => {
   // Validate sender against allowed senders list
   const settings = await loadAppSettingsInternal();
   const allowedSenders = settings.mail?.allowedSenders || [];
-  validateAllowedSender(sender, allowedSenders);
+  validateAllowedSender(sender, allowedSenders, requesterEmail);
 
   const updatedCampaign = await withTransaction(async (runner) => {
     const updateQuery = canAccessAllCampaigns(role)

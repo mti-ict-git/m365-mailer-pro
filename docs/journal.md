@@ -204,3 +204,11 @@
 - Added login-time database schema readiness retry when user table/schema is missing.
 - Kept login audit write non-blocking so audit persistence issues do not fail successful authentication.
 - Updated README authentication section with expanded `503` causes and login-config behavior.
+
+## 2026-03-20 13:56:33
+
+- Added `GET /api/campaigns/sender-options` for approved users to fetch sender dropdown options.
+- Updated sender options to include allowed senders, configured default sender, and logged-in user email.
+- Updated campaign sender validation to allow user self-email even when allowed sender list is configured.
+- Updated campaign builder sender field to use API-driven dropdown and label the current user sender option.
+- Updated README Campaign APIs section with the new sender-options endpoint behavior.

@@ -66,6 +66,7 @@ Response body:
 
 - `GET /api/campaigns`
 - `GET /api/campaigns/:id`
+- `GET /api/campaigns/sender-options`
 - `POST /api/campaigns`
 - `PUT /api/campaigns/:id`
 - `DELETE /api/campaigns/:id`
@@ -84,6 +85,7 @@ Campaign create supports optional attachments:
 - Limits: max 5 files, max 3MB per file, max 10MB total.
 - Campaigns are dispatched asynchronously after creation; status transitions from `scheduled`/`sending` to `completed` or `failed`.
 - `GET /api/campaigns/:id` also returns `recipients` for edit flow prefill.
+- `GET /api/campaigns/sender-options` returns sender dropdown options for the logged-in user, combining allowed senders and the user email when available.
 
 ## Authentication Status Codes
 

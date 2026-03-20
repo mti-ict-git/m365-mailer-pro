@@ -11,6 +11,7 @@ import {
 import { dispatchCampaign } from "../services/campaign-dispatcher.js";
 import { userContextMiddleware } from "../middleware/user-context.js";
 import { requireApprovedUser } from "../middleware/role-guard.js";
+import { loadAppSettingsInternal } from "../services/config-store.js";
 
 export const campaignRouter = Router();
 
@@ -21,6 +22,8 @@ campaignRouter.use(requireApprovedUser);
 const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
 };
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const parseCreatePayload = (payload) => {
   const body = payload && typeof payload === "object" ? payload : {};
@@ -52,6 +55,24 @@ const parseUpdatePayload = (payload) => {
   };
 };
 
+campaignRouter.get("/sender-options", asyncHandler(async (req, res) => {
+  const settings = await loadAppSettingsInternal();
+  const mail = settings?.mail && typeof settings.mail === "object" ? settings.mail : {};
+  const rawAllowedSenders = Array.isArray(mail.allowedSenders) ? mail.allowedSenders : [];
+  const defaultSender = typeof mail.defaultSender === "string" ? mail.defaultSender.trim().toLowerCase() : "";
+  const userEmail = typeof req.userContext.email === "string" ? req.userContext.email.trim().toLowerCase() : "";
+
+  const senders = [...rawAllowedSenders, defaultSender, userEmail]
+    .map((value) => (typeof value === "string" ? value.trim().toLowerCase() : ""))
+    .filter((value) => Boolean(value) && emailRegex.test(value))
+    .filter((value, index, all) => all.indexOf(value) === index);
+
+  res.status(200).json({
+    senders,
+    defaultSender: senders.includes(defaultSender) ? defaultSender : "",
+  });
+}));
+
 campaignRouter.get("/", asyncHandler(async (req, res) => {
   const campaigns = await listCampaigns(req.userContext.userId, req.userContext.role);
   res.status(200).json({ campaigns });
@@ -71,7 +92,7 @@ campaignRouter.get("/:id", asyncHandler(async (req, res) => {
 
 campaignRouter.post("/", asyncHandler(async (req, res) => {
   const payload = parseCreatePayload(req.body);
-  const campaign = await createCampaign(payload, req.userContext.userId);
+  const campaign = await createCampaign(payload, req.userContext.userId, req.userContext.email);
   void dispatchCampaign(campaign.id);
   res.status(201).json({ campaign });
 }));
@@ -88,7 +109,7 @@ campaignRouter.post("/:id/dispatch", asyncHandler(async (req, res) => {
 
 campaignRouter.put("/:id", asyncHandler(async (req, res) => {
   const payload = parseUpdatePayload(req.body);
-  const campaign = await updateCampaign(req.params.id, payload, req.userContext.userId, req.userContext.role);
+  const campaign = await updateCampaign(req.params.id, payload, req.userContext.userId, req.userContext.role, req.userContext.email);
   if (!campaign) {
     res.status(404).json({ message: "Campaign not found" });
     return;
