@@ -35,7 +35,17 @@ const isRecoverableSettingsReadError = (error) => {
   }
 
   const code = "code" in error ? String(error.code) : "";
-  if (code === "42P01" || code === "28000" || code === "28P01" || code === "ECONNREFUSED" || code === "ETIMEDOUT") {
+  const recoverableCodes = [
+    "42P01",       // undefined_table
+    "3D000",       // invalid_catalog_name (database does not exist)
+    "28000",       // invalid_authorization_specification
+    "28P01",       // invalid_password
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+    "ENOTFOUND",   // DNS resolution failure
+    "EAI_AGAIN",   // DNS temporary failure
+  ];
+  if (recoverableCodes.includes(code)) {
     return true;
   }
 
@@ -43,7 +53,10 @@ const isRecoverableSettingsReadError = (error) => {
   return message.includes("no pg_hba.conf entry")
     || message.includes("connection refused")
     || message.includes("password authentication failed")
-    || message.includes("timeout");
+    || message.includes("timeout")
+    || message.includes("does not exist")
+    || message.includes("ssl")
+    || message.includes("the server does not support ssl");
 };
 
 const readPersistedSettings = async () => {
