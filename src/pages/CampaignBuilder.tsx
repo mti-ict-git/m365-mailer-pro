@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { RichEmailEditor } from "@/components/RichEmailEditor";
 import { toast } from "sonner";
@@ -65,6 +66,7 @@ export default function CampaignBuilder() {
   const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
   const [attachments, setAttachments] = useState<CampaignAttachmentPayload[]>([]);
   const [attachmentsDirty, setAttachmentsDirty] = useState(false);
+  const [allowedSenders, setAllowedSenders] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingCampaign, setIsLoadingCampaign] = useState(false);
 
@@ -244,8 +246,14 @@ export default function CampaignBuilder() {
         if (!response.ok) {
           return;
         }
-        const payload = (await response.json()) as { mail?: { defaultSender?: string } };
-        if (payload.mail?.defaultSender) {
+        const payload = (await response.json()) as { mail?: { defaultSender?: string; allowedSenders?: string[] } };
+        const senders = payload.mail?.allowedSenders || [];
+        setAllowedSenders(senders);
+
+        // Set default sender: first allowed sender if available, otherwise use defaultSender setting
+        if (senders.length > 0) {
+          setForm((current) => ({ ...current, sender: current.sender || senders[0] }));
+        } else if (payload.mail?.defaultSender) {
           setForm((current) => ({ ...current, sender: payload.mail?.defaultSender || current.sender }));
         }
       } catch {
@@ -363,7 +371,20 @@ export default function CampaignBuilder() {
               </div>
               <div className="space-y-2">
                 <Label>Sender Email</Label>
-                <Input value={form.sender} onChange={e => update('sender', e.target.value)} placeholder="e.g. marketing@mti.com" className="rounded-xl" />
+                {allowedSenders.length > 0 ? (
+                  <Select value={form.sender} onValueChange={(val) => update('sender', val)}>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select a sender email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allowedSenders.map((email) => (
+                        <SelectItem key={email} value={email}>{email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={form.sender} onChange={e => update('sender', e.target.value)} placeholder="e.g. marketing@mti.com" className="rounded-xl" />
+                )}
               </div>
             </>
           )}

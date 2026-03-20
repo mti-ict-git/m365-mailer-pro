@@ -45,12 +45,14 @@ const roleLabels: Record<UserRole, string> = {
   admin: "Admin",
   manager: "Manager",
   user: "User",
+  pending: "Pending",
 };
 
-const roleBadgeVariants: Record<UserRole, "default" | "secondary" | "outline"> = {
+const roleBadgeVariants: Record<UserRole, "default" | "secondary" | "outline" | "destructive"> = {
   admin: "default",
   manager: "secondary",
   user: "outline",
+  pending: "destructive",
 };
 
 export function UserManagement() {
@@ -172,6 +174,7 @@ export function UserManagement() {
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
                             <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
                           </SelectContent>
                         </Select>
                       )}

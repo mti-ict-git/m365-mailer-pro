@@ -1,4 +1,5 @@
 import { query, withTransaction } from "../db/client.js";
+import { loadAppSettingsInternal } from "./config-store.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const maxAttachmentCount = 5;
@@ -128,6 +129,20 @@ const sanitizeRecipients = (recipients) => {
 };
 
 const canAccessAllCampaigns = (role) => role === "admin" || role === "manager";
+
+const validateAllowedSender = (sender, allowedSenders) => {
+  // If no allowed senders configured, allow any sender (backward compatible)
+  if (!Array.isArray(allowedSenders) || allowedSenders.length === 0) {
+    return;
+  }
+
+  const normalizedSender = sender.toLowerCase().trim();
+  const normalizedAllowed = allowedSenders.map((s) => s.toLowerCase().trim());
+
+  if (!normalizedAllowed.includes(normalizedSender)) {
+    throw withStatusCode("Sender email is not in the allowed senders list", 400);
+  }
+};
 
 export const listCampaigns = async (userId, role) => {
   if (canAccessAllCampaigns(role)) {
@@ -273,6 +288,11 @@ export const createCampaign = async (payload, userId) => {
     throw withStatusCode("At least one recipient is required", 400);
   }
 
+  // Validate sender against allowed senders list
+  const settings = await loadAppSettingsInternal();
+  const allowedSenders = settings.mail?.allowedSenders || [];
+  validateAllowedSender(sender, allowedSenders);
+
   const createdCampaign = await withTransaction(async (runner) => {
     const campaignResult = await runner(
       `INSERT INTO campaigns
@@ -332,6 +352,11 @@ export const updateCampaign = async (campaignId, payload, userId, role) => {
   if (recipients.length === 0) {
     throw withStatusCode("At least one recipient is required", 400);
   }
+
+  // Validate sender against allowed senders list
+  const settings = await loadAppSettingsInternal();
+  const allowedSenders = settings.mail?.allowedSenders || [];
+  validateAllowedSender(sender, allowedSenders);
 
   const updatedCampaign = await withTransaction(async (runner) => {
     const updateQuery = canAccessAllCampaigns(role)

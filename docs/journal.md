@@ -189,3 +189,18 @@
 - Updated dashboard campaign loading to use authenticated API client headers.
 - Updated logs loading to use authenticated API client headers.
 - Fixed post-login requests to protected campaign/log endpoints that require `X-Username`.
+
+## 2026-03-20 11:28:19
+
+- Added public `GET /api/auth/login-config` endpoint for login-safe LDAP domain loading.
+- Updated login page to load domains from `/api/auth/login-config` instead of protected settings endpoint.
+- Improved login flow handling for database write failures by returning `503` with a service availability message.
+- Updated global error response behavior to keep `500` generic while exposing non-500 status messages.
+- Updated README with role in login response and auth settings endpoint access rules.
+
+## 2026-03-20 11:35:56
+
+- Fixed Vite CSS import order by moving Google Fonts `@import` before Tailwind directives.
+- Added login-time database schema readiness retry when user table/schema is missing.
+- Kept login audit write non-blocking so audit persistence issues do not fail successful authentication.
+- Updated README authentication section with expanded `503` causes and login-config behavior.

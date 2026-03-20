@@ -58,7 +58,7 @@ export default function Login() {
   useEffect(() => {
     const loadDomains = async () => {
       try {
-        const response = await fetch("/api/auth/settings");
+        const response = await fetch("/api/auth/login-config");
         if (!response.ok) {
           throw new Error("Failed");
         }

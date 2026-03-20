@@ -1,4 +1,4 @@
-import { findOrCreateUser } from "../services/user-service.js";
+import { findUserByUsername } from "../services/user-service.js";
 import { normalizeSamAccountName } from "../utils/normalize-username.js";
 
 export const userContextMiddleware = async (req, res, next) => {
@@ -12,7 +12,10 @@ export const userContextMiddleware = async (req, res, next) => {
   }
 
   try {
-    const user = await findOrCreateUser(username);
+    const user = await findUserByUsername(username);
+    if (!user) {
+      return res.status(401).json({ message: "User not found. Please login first." });
+    }
     req.userContext = {
       userId: user.id,
       username: user.username,

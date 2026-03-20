@@ -44,7 +44,8 @@ Response body:
     "domain": "mti.local",
     "department": "IT",
     "title": "Engineer",
-    "distinguishedName": "CN=John Doe,OU=Users,DC=example,DC=com"
+    "distinguishedName": "CN=John Doe,OU=Users,DC=example,DC=com",
+    "role": "user"
   }
 }
 ```
@@ -52,10 +53,14 @@ Response body:
 ## Backend Configuration APIs
 
 - `GET /api/health`
+- `GET /api/auth/login-config`
 - `GET /api/auth/settings`
 - `POST /api/auth/settings`
 - `POST /api/auth/settings/test-email`
 - `GET /api/auth/templates`
+
+`GET /api/auth/login-config` is public and returns login-safe configuration (such as LDAP domains).
+`GET /api/auth/settings` and settings write/test endpoints require `X-Username` and manager/admin role.
 
 ## Campaign APIs
 
@@ -84,7 +89,12 @@ Campaign create supports optional attachments:
 
 - `200` login success.
 - `401` invalid username/password.
-- `503` LDAP service unavailable, certificate issue, or backend LDAP configuration is incomplete.
+- `503` LDAP service unavailable, backend user database unavailable, or backend LDAP configuration is incomplete.
+
+Login resilience:
+
+- On login, backend attempts to ensure database schema readiness and retries user provisioning once when user table/schema is missing.
+- Login domain configuration is read from `GET /api/auth/login-config` and does not require authentication.
 
 ## Environment Variables
 

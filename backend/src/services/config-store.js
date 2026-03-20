@@ -81,6 +81,7 @@ const sanitizeForClient = (settings) => {
   const graph = asObject(mail.microsoftGraph);
 
   const clientSecret = pickString(graph.clientSecret);
+  const allowedSenders = Array.isArray(mail.allowedSenders) ? mail.allowedSenders : [];
 
   return {
     ...settings,
@@ -92,6 +93,8 @@ const sanitizeForClient = (settings) => {
     mail: {
       ...mail,
       recipientWarningThreshold: pickNumber(mail.recipientWarningThreshold, 100, 100),
+      allowedSenders,
+      systemNotificationSender: pickString(mail.systemNotificationSender),
       microsoftGraph: {
         tenantId: pickString(graph.tenantId),
         clientId: pickString(graph.clientId),
@@ -111,6 +114,13 @@ const mergeAppSettings = ({ fileSettings, persistedSettings }) => {
   const persistedMail = asObject(persistedRoot.mail);
   const fileGraph = asObject(fileMail.microsoftGraph);
   const persistedGraph = asObject(persistedMail.microsoftGraph);
+
+  // For allowedSenders, persisted takes precedence; use file as fallback
+  const allowedSenders = Array.isArray(persistedMail.allowedSenders)
+    ? persistedMail.allowedSenders
+    : Array.isArray(fileMail.allowedSenders)
+      ? fileMail.allowedSenders
+      : [];
 
   const merged = {
     ...fileRoot,
@@ -133,6 +143,8 @@ const mergeAppSettings = ({ fileSettings, persistedSettings }) => {
       ...fileMail,
       ...persistedMail,
       defaultSender: pickString(persistedMail.defaultSender, fileMail.defaultSender),
+      systemNotificationSender: pickString(persistedMail.systemNotificationSender, fileMail.systemNotificationSender),
+      allowedSenders,
       recipientWarningThreshold: pickNumber(
         persistedMail.recipientWarningThreshold,
         fileMail.recipientWarningThreshold,
@@ -163,6 +175,13 @@ const buildSettingsToPersist = (settingsPatch, currentSettings) => {
   const patchGraph = asObject(patchMail.microsoftGraph);
   const nextClientSecret = pickString(patchGraph.clientSecret, currentGraph.clientSecret);
 
+  // For allowedSenders, use patch if provided (even if empty array), otherwise keep current
+  const allowedSenders = Array.isArray(patchMail.allowedSenders)
+    ? patchMail.allowedSenders
+    : Array.isArray(currentMail.allowedSenders)
+      ? currentMail.allowedSenders
+      : [];
+
   return {
     application: {
       defaultBatchSize: pickNumber(
@@ -178,6 +197,8 @@ const buildSettingsToPersist = (settingsPatch, currentSettings) => {
     },
     mail: {
       defaultSender: pickString(patchMail.defaultSender, currentMail.defaultSender),
+      systemNotificationSender: pickString(patchMail.systemNotificationSender, currentMail.systemNotificationSender),
+      allowedSenders,
       recipientWarningThreshold: pickNumber(
         patchMail.recipientWarningThreshold,
         currentMail.recipientWarningThreshold,
@@ -204,6 +225,29 @@ export const loadAppSettingsInternal = async () => {
   const fileSettings = await readJsonFile("settings.json");
   const persistedSettings = await readPersistedSettings();
   return mergeAppSettings({ fileSettings, persistedSettings });
+};
+
+export const loadLoginConfig = async () => {
+  const fileSettings = await readJsonFile("settings.json");
+  const ldap = asObject(fileSettings.ldap);
+  const rawDomains = Array.isArray(ldap.domains) ? ldap.domains : [];
+  const domains = rawDomains
+    .map((domain) => {
+      const row = domain && typeof domain === "object" ? domain : {};
+      const id = pickString(row.id);
+      const label = pickString(row.label, id);
+      if (!id) {
+        return null;
+      }
+      return { id, label };
+    })
+    .filter((domain) => domain !== null);
+
+  return {
+    ldap: {
+      domains,
+    },
+  };
 };
 
 export const saveAppSettings = async (settingsPatch) => {

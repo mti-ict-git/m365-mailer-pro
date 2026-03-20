@@ -5,5 +5,12 @@ export const requireRole = (allowedRoles) => (req, res, next) => {
   return next();
 };
 
+export const requireApprovedUser = (req, res, next) => {
+  if (req.userContext?.role === "pending") {
+    return res.status(403).json({ message: "Access pending approval" });
+  }
+  return next();
+};
+
 export const requireAdmin = requireRole(["admin"]);
 export const requireManagerOrAdmin = requireRole(["admin", "manager"]);

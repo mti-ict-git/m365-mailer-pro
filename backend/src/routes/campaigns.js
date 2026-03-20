@@ -10,10 +10,13 @@ import {
 } from "../services/campaign-store.js";
 import { dispatchCampaign } from "../services/campaign-dispatcher.js";
 import { userContextMiddleware } from "../middleware/user-context.js";
+import { requireApprovedUser } from "../middleware/role-guard.js";
 
 export const campaignRouter = Router();
 
+// Apply user context to all routes, then require approved (non-pending) user
 campaignRouter.use(userContextMiddleware);
+campaignRouter.use(requireApprovedUser);
 
 const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);

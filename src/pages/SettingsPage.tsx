@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +18,8 @@ interface BackendSettings {
   };
   mail?: {
     defaultSender?: string;
+    systemNotificationSender?: string;
+    allowedSenders?: string[];
     recipientWarningThreshold?: number;
     microsoftGraph?: {
       tenantId?: string;
@@ -26,17 +30,40 @@ interface BackendSettings {
   };
 }
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function SettingsPage() {
   const { canManageUsers } = useAuth();
   const [config, setConfig] = useState({
-    tenantId: "", clientId: "", defaultSender: "", batchSize: "50", batchDelay: "2", recipientWarning: "100",
+    tenantId: "", clientId: "", defaultSender: "", systemNotificationSender: "", batchSize: "50", batchDelay: "2", recipientWarning: "100",
   });
+  const [allowedSenders, setAllowedSenders] = useState<string[]>([]);
+  const [newSenderInput, setNewSenderInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [testRecipient, setTestRecipient] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   const update = (key: string, val: string) => setConfig(c => ({ ...c, [key]: val }));
+
+  const handleAddSender = () => {
+    const email = newSenderInput.trim().toLowerCase();
+    if (!email) return;
+    if (!emailRegex.test(email)) {
+      toast.error("Invalid email format");
+      return;
+    }
+    if (allowedSenders.includes(email)) {
+      toast.error("Email already in list");
+      return;
+    }
+    setAllowedSenders([...allowedSenders, email]);
+    setNewSenderInput("");
+  };
+
+  const handleRemoveSender = (email: string) => {
+    setAllowedSenders(allowedSenders.filter((s) => s !== email));
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -53,6 +80,8 @@ export default function SettingsPage() {
           },
           mail: {
             defaultSender: config.defaultSender,
+            systemNotificationSender: config.systemNotificationSender,
+            allowedSenders,
             recipientWarningThreshold: Number.parseInt(config.recipientWarning, 10),
             microsoftGraph: {
               tenantId: config.tenantId,
@@ -121,10 +150,12 @@ export default function SettingsPage() {
           tenantId: settings.mail?.microsoftGraph?.tenantId || previous.tenantId,
           clientId: settings.mail?.microsoftGraph?.clientId || previous.clientId,
           defaultSender: settings.mail?.defaultSender || previous.defaultSender,
+          systemNotificationSender: settings.mail?.systemNotificationSender || previous.systemNotificationSender,
           batchSize: String(settings.application?.defaultBatchSize ?? previous.batchSize),
           batchDelay: String(settings.application?.defaultBatchDelaySeconds ?? previous.batchDelay),
           recipientWarning: String(settings.mail?.recipientWarningThreshold ?? previous.recipientWarning),
         }));
+        setAllowedSenders(settings.mail?.allowedSenders || []);
       } catch {
         toast.error("Unable to load backend settings");
       } finally {
@@ -170,6 +201,11 @@ export default function SettingsPage() {
                 <Label>Default Sender</Label>
                 <Input value={config.defaultSender} onChange={e => update('defaultSender', e.target.value)} placeholder="noreply@mti.com" className="rounded-xl" />
               </div>
+              <div className="space-y-2">
+                <Label>System Notification Sender</Label>
+                <Input value={config.systemNotificationSender} onChange={e => update('systemNotificationSender', e.target.value)} placeholder="system@mti.com" className="rounded-xl" />
+                <p className="text-xs text-muted-foreground">Email for sending access request notifications to admins</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="space-y-2">
                   <Label>Test Recipient</Label>
@@ -210,6 +246,49 @@ export default function SettingsPage() {
                 <Input type="number" value={config.recipientWarning} onChange={e => update('recipientWarning', e.target.value)} className="rounded-xl" />
                 <p className="text-xs text-muted-foreground">Warn if recipients exceed</p>
               </div>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl shadow-card border p-6 space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-card-foreground">Allowed Senders</h2>
+              <p className="text-xs text-muted-foreground mt-1">Email addresses that can be used as senders for campaigns. Leave empty to allow any sender.</p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+                <div className="space-y-2">
+                  <Label>Add Sender Email</Label>
+                  <Input
+                    value={newSenderInput}
+                    onChange={(e) => setNewSenderInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddSender()}
+                    placeholder="sender@company.com"
+                    className="rounded-xl"
+                  />
+                </div>
+                <Button variant="outline" onClick={handleAddSender} className="rounded-xl">
+                  Add
+                </Button>
+              </div>
+              {allowedSenders.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {allowedSenders.map((email) => (
+                    <Badge key={email} variant="secondary" className="text-sm py-1 px-3">
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSender(email)}
+                        className="ml-2 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {allowedSenders.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">No allowed senders configured. Any valid email can be used as sender.</p>
+              )}
             </div>
           </motion.div>
 

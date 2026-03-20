@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { authenticateWithLdap } from "../services/ldap-auth.js";
 import { validateLoginPayload } from "../middleware/validate-login.js";
-import { loadAppSettings, loadAppSettingsInternal, loadTemplates, saveAppSettings } from "../services/config-store.js";
+import { loadAppSettings, loadAppSettingsInternal, loadLoginConfig, loadTemplates, saveAppSettings } from "../services/config-store.js";
 import { writeLoginAudit } from "../services/login-audit.js";
 import { sendMicrosoftGraphTestEmail } from "../services/test-email.js";
-import { findOrCreateUser, listAllUsers, updateUserRole, deleteUser } from "../services/user-service.js";
+import { findOrCreateUser, listAllUsers, updateUserRole, deleteUser, getAdminEmails } from "../services/user-service.js";
+import { sendAccessRequestNotification } from "../services/notification-service.js";
 import { userContextMiddleware } from "../middleware/user-context.js";
 import { requireAdmin, requireManagerOrAdmin } from "../middleware/role-guard.js";
+import { ensureDatabaseReady } from "../db/init-database.js";
 
 export const authRouter = Router();
 
@@ -14,9 +16,38 @@ const asyncHandler = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
 };
 
+const withStatusCode = (message, statusCode) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const shouldRetryUserLookup = (error) => {
+  const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+  if (code === "42P01" || code === "3D000") {
+    return true;
+  }
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("relation")
+    || message.includes("does not exist")
+    || message.includes("app_users");
+};
+
 const parseNumberInput = (value, fallback) => {
   const parsed = Number.parseInt(String(value), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const parseAllowedSenders = (rawSenders) => {
+  if (!Array.isArray(rawSenders)) {
+    return undefined; // Not provided, keep current
+  }
+  return rawSenders
+    .filter((sender) => typeof sender === "string" && emailRegex.test(sender.trim()))
+    .map((sender) => sender.trim().toLowerCase())
+    .filter((sender, index, arr) => arr.indexOf(sender) === index); // Remove duplicates
 };
 
 const parseSettingsPayload = (payload) => {
@@ -30,6 +61,8 @@ const parseSettingsPayload = (payload) => {
     : {};
 
   const defaultSender = typeof mail.defaultSender === "string" ? mail.defaultSender.trim() : "";
+  const systemNotificationSender = typeof mail.systemNotificationSender === "string" ? mail.systemNotificationSender.trim() : "";
+  const allowedSenders = parseAllowedSenders(mail.allowedSenders);
   const tenantId = typeof graph.tenantId === "string" ? graph.tenantId.trim() : "";
   const clientId = typeof graph.clientId === "string" ? graph.clientId.trim() : "";
   const scope = typeof graph.scope === "string" && graph.scope.trim()
@@ -37,13 +70,14 @@ const parseSettingsPayload = (payload) => {
     : "https://graph.microsoft.com/.default";
   const clientSecret = typeof graph.clientSecret === "string" ? graph.clientSecret.trim() : "";
 
-  return {
+  const result = {
     application: {
       defaultBatchSize: parseNumberInput(application.defaultBatchSize, 50),
       defaultBatchDelaySeconds: parseNumberInput(application.defaultBatchDelaySeconds, 2),
     },
     mail: {
       defaultSender,
+      systemNotificationSender,
       recipientWarningThreshold: parseNumberInput(mail.recipientWarningThreshold, 100),
       microsoftGraph: {
         tenantId,
@@ -53,6 +87,13 @@ const parseSettingsPayload = (payload) => {
       },
     },
   };
+
+  // Only include allowedSenders if it was provided in the payload
+  if (allowedSenders !== undefined) {
+    result.mail.allowedSenders = allowedSenders;
+  }
+
+  return result;
 };
 
 const parseTestEmailPayload = (payload) => {
@@ -76,9 +117,26 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
 
   try {
     const ldapUser = await authenticateWithLdap({ username, password, domain });
+    let dbUser;
 
-    // Create or find user in database to get their role
-    const dbUser = await findOrCreateUser(ldapUser.username);
+    try {
+      dbUser = await findOrCreateUser({
+        username: ldapUser.username,
+        displayName: ldapUser.displayName,
+        email: ldapUser.email,
+      });
+    } catch (error) {
+      if (shouldRetryUserLookup(error)) {
+        await ensureDatabaseReady();
+        dbUser = await findOrCreateUser({
+          username: ldapUser.username,
+          displayName: ldapUser.displayName,
+          email: ldapUser.email,
+        });
+      } else {
+        throw withStatusCode("User database is temporarily unavailable", 503);
+      }
+    }
 
     await writeLoginAudit({
       username,
@@ -86,7 +144,27 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
       success: true,
       sourceIp,
       errorMessage: "",
-    });
+    }).catch(() => undefined);
+
+    // Send notification to admins if this is a new pending user
+    if (dbUser.isNewUser && dbUser.role === "pending") {
+      getAdminEmails()
+        .then((adminEmails) => {
+          if (adminEmails.length > 0) {
+            return sendAccessRequestNotification({
+              newUser: {
+                username: ldapUser.username,
+                displayName: ldapUser.displayName,
+                email: ldapUser.email,
+              },
+              adminEmails,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("[auth] Failed to send access request notification:", err);
+        });
+    }
 
     res.status(200).json({
       user: {
@@ -114,6 +192,11 @@ authRouter.post("/login", validateLoginPayload, asyncHandler(async (req, res) =>
     }).catch(() => undefined);
     throw error;
   }
+}));
+
+authRouter.get("/login-config", asyncHandler(async (req, res) => {
+  const config = await loadLoginConfig();
+  res.status(200).json(config);
 }));
 
 authRouter.get("/settings", userContextMiddleware, requireManagerOrAdmin, asyncHandler(async (req, res) => {

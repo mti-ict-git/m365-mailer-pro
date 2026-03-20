@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
-export type UserRole = "admin" | "manager" | "user";
+export type UserRole = "admin" | "manager" | "user" | "pending";
 
 interface User {
   username: string;
@@ -19,6 +19,7 @@ interface AuthContextType {
   error: string | null;
   canAccessSettings: boolean;
   canManageUsers: boolean;
+  isPending: boolean;
 }
 
 interface LoginResponse {
@@ -92,9 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const canAccessSettings = user?.role === "admin" || user?.role === "manager";
   const canManageUsers = user?.role === "admin";
+  const isPending = user?.role === "pending";
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, error, canAccessSettings, canManageUsers }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, error, canAccessSettings, canManageUsers, isPending }}>
       {children}
     </AuthContext.Provider>
   );
